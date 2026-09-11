@@ -1,6 +1,6 @@
 # Phase 1 — Sign-off Record
 
-> **Date:** 2026-09-11 | **Author:** Senior Dev | **Status:** GO (with open items)
+> **Date:** 2026-09-11 | **Author:** Senior Dev | **Status: TRUE GO** (dated 2026-09-11)
 
 ---
 
@@ -15,19 +15,21 @@ for the Boot 3.5 line (EOL 2026-06-30), but app exposure is **LOW-to-none**
 (modules not on the classpath / features unused; see §7.2). A live DR restore
 drill was performed and timed. The stack boots cleanly under the `prod` profile.
 
-**Go/no-go recommendation: GO for real-lead use.** Specific conditions:
+**Go/no-go recommendation: TRUE GO for real-lead use (2026-09-11).** All
+pre-GO conditions from Prompt 4 are now resolved:
 
-- **`JWT_SECRET` + `WEBHOOK_SECRET` rotated 2026-09-11** (open item #2 → RESOLVED).
-  The compromised NVD API key is **no longer present** — `owasp-run8.cmd`
-  deleted 2026-09-11 after a reference sweep; a fresh key is not required for
-  the primary monitoring path (OSV-Scanner + `npm audit`).
-- VPS provider + DNS + automated backup pipeline are prerequisite for the
-  deployment checklist (DISASTER_RECOVERY.md §5); this is an ops prerequisite,
-  not a code-blocker.
-- **Dependency monitoring cadence set (see §7.2):** monthly spring.io security
-  RSS + quarterly OSV re-scan (no OSS fix exists in line); next re-check
-  **2026-10-09**. Remediation = Spring Boot 4.x migration (Framework 7.0.9 /
-  Security 7.0.7+), tracked as a Phase 2 item, not a Phase 1 blocker.
+- **`JWT_SECRET` + `WEBHOOK_SECRET` rotated 2026-09-11** (item 1 below;
+  post-rotation smoke: login 200, leads 200, signed webhook → lead created).
+- **NVD API key was compromised → collateraled 2026-09-11**: `owasp-run8.cmd`
+  deleted after a zero-reference sweep; key no longer reachable. Monitoring
+  path uses OSV-Scanner + `npm audit` (no NVD key required), so this is not a
+  blocker; a fresh key (env-var stored) is optional.
+- **Spring CVE re-check completed 2026-09-11**: no OSS fix exists in line;
+  exposure LOW-to-none; monitoring cadence set (see §7.2). Not a blocker.
+- **Git repo created + pushed 2026-09-11** (private); Dependabot alerts on;
+  branch protection requires one manual web-UI step (§5.1). Not a code-blocker.
+- VPS provider + DNS + automated backup pipeline remain an **ops prerequisite**
+  for the deployment checklist (DISASTER_RECOVERY.md §5); not a code-blocker.
 
 ---
 
@@ -100,13 +102,25 @@ drill was performed and timed. The stack boots cleanly under the `prod` profile.
 ### 5.1 CI merge-blocking
 
 **`.github/workflows/ci.yml` present.** Gates: backend `mvn -B verify`
-(JDK 25, Postgres 16 service) + frontend `npm ci && lint && typecheck &&
-build`. Triggered on `pull_request`.
+(JDK 25, Postgres 16 service) + frontend `npm ci` + lint + typecheck +
+build. Triggered on `pull_request`.
 
-**Open item:** actual GitHub branch-protection rule requires a hosted repo +
-Settings → Branches → "Require status checks before merging" — pending repo
-creation (action in progress). **Action:** enable branch protection when the
-repo is pushed.
+**Git repo created 2026-09-11:** https://github.com/querytamasraapple-hub/securetravels-crm
+(private; initial commit pushed; Dependabot alerts enabled via API).
+
+**Open item:** branch protection must be configured manually via the GitHub web
+UI (classic PATs cannot set it via the API). Navigate to **Settings → Branches →
+Add rule** and apply:
+
+| Setting | Value |
+|---|---|
+| Branch name pattern | `main` |
+| Require a pull request before merging | ✅ (1 approval required, dismiss stale reviews) |
+| Require status checks to pass before merging | ✅ (`backend`, `frontend`) |
+| Require branches to be up to date before merging | ✅ |
+| Do not allow bypassing the above settings | ✅ (enforce admins) |
+| Allow force pushes | ❌ |
+| Allow deletions | ❌ |
 
 ### 5.2 Current deployment target
 
@@ -230,11 +244,11 @@ Boot/Security OSS patch release.
 |---|---|---|---|
 | 1 | ~~Rotate NVD API key~~ **RESOLVED 2026-09-11** — `owasp-run8.cmd` deleted after reference sweep; old key no longer reachable. Fresh key optional (OSV is primary monitor) | Ops/Security | No |
 | 2 | ~~Rotate `JWT_SECRET` + `WEBHOOK_SECRET`~~ **RESOLVED 2026-09-11** — rotated to strong values, backend rebooted under `prod`, post-rotation smoke passed (login 200, leads 200, signed webhook → lead created) | Ops/Security | No |
-| 3 | Enable **GitHub branch protection** (require CI + 1 review on `main`) | Repo admin | No (workflow gates present) |
+| 3 | Enable **GitHub branch protection** (require CI + 1 review on `main`) — **repo created**; Dependabot alerts on; branch protection must be set manually (Settings → Branches; classic PAT can't do it via API) | Repo admin (web UI) | No (workflow gates present) |
 | 4 | **Provision VPS** + DNS `securetravels.in` → VPS; Nginx + Let's Encrypt | Ops | No (infrastructure prerequisite) |
 | 5 | **Automate daily `pg_dump`** cron + off-VPS backup (DISASTER_RECOVERY.md §2) | Ops | No (Phase 2 infra) |
 | 6 | **Dependency monitoring cadence established 2026-09-11** — no OSS fix exists in line (Boot 3.5 EOL); monthly RSS + quarterly OSV with accepted-risk documentation (§7.2); next re-check **2026-10-09**; remediation = Boot 4.x migration (Phase 2) | Dev | No (accepted-risk, exposure LOW-to-none) |
-| 7 | Enable **Dependabot alerts** on repo | Repo admin | Optional |
+| 7 | ~Enable **Dependabot alerts** on repo~ **DONE 2026-09-11** — enabled via API on `querytamasraapple-hub/securetravels-crm` after push | Repo admin | No |
 | 8 | ~~Cadence difference~~ **RESOLVED 2026-09-11** — +1/+3/+8/+15 cumulative implemented per Master Spec §19.2 (migration V7, tests green) | — | No |
 
 ---

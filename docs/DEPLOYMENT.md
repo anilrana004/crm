@@ -11,7 +11,7 @@
 | Surface | What |
 |---|---|
 | Local dev | Docker Compose (`docker compose up --build`): `postgres:16` + backend jar + frontend; or run each locally (see README quick start) |
-| CI | GitHub Actions (`.github/workflows/ci.yml`): backend `mvn -B verify` on JDK 25 against a `postgres:16` service; frontend `npm ci` + lint + typecheck + build on Node 24. **No production deploy step yet.** ⚠ Branch protection (require status checks + review on `main`) is an open item — repo creation in progress (2026-09-11); once hosted, enable "Require status checks before merging" + "Require 1 approving review" on `main`, and turn on Dependabot alerts. |
+| CI | GitHub Actions (`.github/workflows/ci.yml`): backend `mvn -B verify` on JDK 25 against a `postgres:16` service; frontend `npm ci` + lint + typecheck + build on Node 24. **No production deploy step yet.** ⚠ Branch protection (require status checks + review on `main`) must be enabled manually via the GitHub web UI (Settings → Branches → Add rule) — see PHASE_1_SIGNOFF.md §5.1 for the exact settings to apply. |
 | Production target | **Single Ubuntu VPS** running the same Docker Compose stack behind **Nginx reverse proxy with Let's Encrypt TLS**. Provider/domain to be recorded when provisioned (domain in plan: `securetravels.in`). |
 
 > ⚠ Applies-on-provision (Phase 1 completion gate): the concrete VPS provider,
