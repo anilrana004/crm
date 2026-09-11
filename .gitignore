@@ -1,0 +1,58 @@
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+.nuxt/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.classpath
+.project
+factorypath/
+
+# OS
+desktop.ini
+Thumbs.db
+.DS_Store
+ehthumbs.db
+
+# PostgreSQL data (local dev)
+.pgdata/
+
+# Dev-only JDK toolchain (pre-built binaries, not source)
+.tools/
+
+# Secrets — NEVER commit these
+app-boot*.cmd
+app-boot*.sh
+*.env
+.env.*
+
+# Temporary / local-only logs and caches
+temp/
+*.log
+tmp/
+
+# OSV Scanner binary (downloaded, not source)
+osv-scanner*
+
+# OWASP reports (stored in TEMP outside repo, excluded as a safety net)
+owasp-evidence/
+dependency-check-report*

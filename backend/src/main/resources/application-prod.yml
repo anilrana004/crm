@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    show-sql: false
+
+app:
+  bootstrap-demo-data: false
+
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    org.hibernate.SQL: OFF

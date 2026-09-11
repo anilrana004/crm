@@ -1,0 +1,26 @@
+{
+  "name": "securetravels-server",
+  "version": "1.0.0",
+  "description": "SecureTravels CRM — Phase 1 backend",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "schema": "node scripts/schema.js",
+    "seed": "node scripts/seed.js",
+    "setup": "node scripts/setup.js"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/jwt": "^8.0.1",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.14",
+    "pg": "^8.12.0"
+  }
+}

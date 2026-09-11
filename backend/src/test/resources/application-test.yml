@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/securetravels_test
+    username: postgres
+    password: ""
+  flyway:
+    clean-disabled: false
+
+app:
+  login-rate-limit:
+    capacity: 10000
+    refill-per-window: 10000
+    window-minutes: 15
+  webhook:
+    rate-limit:
+      capacity: 10000
+      refill-per-window: 10000
+      window-minutes: 1
+  bootstrap-demo-data: false
+
+logging:
+  level:
+    org.hibernate.SQL: OFF
