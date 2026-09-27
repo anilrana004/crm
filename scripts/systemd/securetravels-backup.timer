@@ -1,0 +1,17 @@
+[Unit]
+Description=Run the SecureTravels CRM PostgreSQL backup daily
+Documentation=file:/opt/securetravels/docs/RUNBOOK_PRODUCTION_DEPLOY.md
+
+[Timer]
+# 02:17 rather than 02:00: spreads load and avoids the "everyone backs up at
+# midnight" collision with other tenants on shared infrastructure.
+OnCalendar=*-*-* 02:17:00
+# Catch up after downtime/reboot instead of silently skipping a day.
+Persistent=true
+# A random delay of up to 5 min so restarts don't stampede.
+RandomizedDelaySec=300
+# If the machine was off at 02:17, run as soon as it is back.
+AccuracySec=1m
+
+[Install]
+WantedBy=timers.target

@@ -13,6 +13,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -95,6 +97,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> onAuth(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                 new ApiError(HttpStatus.UNAUTHORIZED.value(), "UNAUTHORIZED", "Invalid email or password"));
+    }
+
+    /**
+     * A request to a path that maps to no controller and no static resource is
+     * a client error, not a server fault. Spring throws
+     * {@link NoResourceFoundException} from the static-resource handler (and
+     * {@link NoHandlerFoundException} when no handler is resolvable at all);
+     * without these, both fall through to the generic {@code Exception}
+     * handler and get reported as 500.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ApiError> onNoSuchRoute(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                new ApiError(HttpStatus.NOT_FOUND.value(), "NOT_FOUND", "No endpoint for this path"));
     }
 
     @ExceptionHandler(Exception.class)

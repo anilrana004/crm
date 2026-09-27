@@ -12,6 +12,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -31,7 +32,7 @@ import java.util.UUID;
         })
 public class Batch extends Auditable {
 
-    public enum Status { OPEN, CLOSED, CANCELLED }
+    public enum Status { OPEN, CLOSED, CANCELLED, READY_FOR_DEPARTURE }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -59,6 +60,19 @@ public class Batch extends Auditable {
     @Column(nullable = false, length = 20)
     private Status status = Status.OPEN;
 
+    /** One-shot latch: set the first time seats/fill cross the configured
+     *  capacity-alert threshold (V10). Mirrors tasks.escalation mechanics —
+     *  the alert fires ONCE and never re-fires while this is non-null. */
+    @Column(name = "capacity_alerted_at")
+    private Instant capacityAlertedAt;
+
+    /** Second one-shot latch (V11): set the first time the near-departure
+     *  viability check runs for this batch. Separate from
+     *  {@link #capacityAlertedAt} because scarcity and minimum-viable-group
+     *  are independent events that must each fire exactly once. */
+    @Column(name = "min_group_alerted_at")
+    private Instant minGroupAlertedAt;
+
     protected Batch() {}
 
     public Batch(UUID tripId, LocalDate departureDate, int maxCapacity) {
@@ -80,6 +94,32 @@ public class Batch extends Auditable {
     public UUID getGuideId() { return guideId; }
     public String getTransportPlan() { return transportPlan; }
     public Status getStatus() { return status; }
+
+    /** Capacity-alert latch read — non-null once the one-shot threshold alert
+     *  has fired (V10). Mirrors tasks.escalation read; see I4 derivation. */
+    public Instant getCapacityAlertedAt() { return capacityAlertedAt; }
+
+    /** One-shot latch write (V10): NEVER re-fires while this is non-null. */
+    public void markCapacityAlerted(Instant at) { this.capacityAlertedAt = at; }
+
+    /** Minimum-viable-group latch read — non-null once the near-departure
+     *  viability alert has fired (V11). */
+    public Instant getMinGroupAlertedAt() { return minGroupAlertedAt; }
+
+    /** One-shot latch write (V11): NEVER re-fires while this is non-null. */
+    public void markMinGroupAlerted(Instant at) { this.minGroupAlertedAt = at; }
+
+    /** True while this batch has never raised a capacity-scarcity alert. */
+    public boolean needsCapacityAlert() { return this.capacityAlertedAt == null; }
+
+    /** True while this batch has never raised a minimum-viable-group alert. */
+    public boolean needsMinGroupAlert() { return this.minGroupAlertedAt == null; }
+
+    /** Configured-threshold-independent fill ratio (I4): clean integer percent. */
+    public int fillPercent() {
+        if (maxCapacity <= 0) return 0;
+        return (int) Math.round(seatsBooked * 100.0 / maxCapacity);
+    }
 
     public void setDepartureDate(LocalDate departureDate) { this.departureDate = departureDate; }
     public void setMaxCapacity(int maxCapacity) { this.maxCapacity = maxCapacity; }

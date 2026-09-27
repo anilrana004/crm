@@ -22,14 +22,14 @@ import com.securetravels.crm.payment.Payment;
 import com.securetravels.crm.payment.PaymentRepository;
 import com.securetravels.crm.task.Task;
 import com.securetravels.crm.task.TaskRepository;
-import com.securetravels.crm.trip.Guide;
-import com.securetravels.crm.trip.GuideRepository;
 import com.securetravels.crm.trip.Trip;
 import com.securetravels.crm.trip.TripRepository;
 import com.securetravels.crm.user.Role;
 import com.securetravels.crm.user.User;
 import com.securetravels.crm.user.UserPrincipal;
 import com.securetravels.crm.user.UserRepository;
+import com.securetravels.crm.vendors.Vendor;
+import com.securetravels.crm.vendors.VendorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -73,7 +73,7 @@ public class OperationsService {
     private final OperationsHandoffRepository handoffs;
     private final BookingRepository bookings;
     private final PaymentRepository payments;
-    private final GuideRepository guides;
+    private final VendorRepository vendors;
     private final TripRepository trips;
     private final Customer360Repository customers;
     private final LeadRepository leads;
@@ -84,14 +84,14 @@ public class OperationsService {
     private final AuditService auditService;
 
     public OperationsService(OperationsHandoffRepository handoffs, BookingRepository bookings,
-                             PaymentRepository payments, GuideRepository guides, TripRepository trips,
+                             PaymentRepository payments, VendorRepository vendors, TripRepository trips,
                              Customer360Repository customers, LeadRepository leads, UserRepository users,
                              TaskRepository tasks, NotificationRepository notifications, EmailNotifier email,
                              AuditService auditService) {
         this.handoffs = handoffs;
         this.bookings = bookings;
         this.payments = payments;
-        this.guides = guides;
+        this.vendors = vendors;
         this.trips = trips;
         this.customers = customers;
         this.leads = leads;
@@ -188,19 +188,32 @@ public class OperationsService {
             handoff.setTransportStatus(request.transportStatus());
         }
         if (request.guideId() != null && !request.guideId().equals(handoff.getGuideId())) {
-            if (!guides.existsById(request.guideId())) {
-                throw new BadRequestException("Guide not found: " + request.guideId());
-            }
+            requireVendor(request.guideId(), Vendor.Category.GUIDE, "Guide vendor not found: ");
             auditService.record("OPERATIONS_HANDOFF", handoff.getId(), AuditAction.UPDATE, "guide_id",
                     handoff.getGuideId() == null ? null : handoff.getGuideId().toString(),
                     request.guideId().toString());
             handoff.setGuideId(request.guideId());
         }
         if (request.driverId() != null && !request.driverId().equals(handoff.getDriverId())) {
+            requireVendor(request.driverId(), Vendor.Category.DRIVER, "Driver vendor not found: ");
             auditService.record("OPERATIONS_HANDOFF", handoff.getId(), AuditAction.UPDATE, "driver_id",
                     handoff.getDriverId() == null ? null : handoff.getDriverId().toString(),
                     request.driverId().toString());
             handoff.setDriverId(request.driverId());
+        }
+        if (request.hotelVendorId() != null && !request.hotelVendorId().equals(handoff.getHotelVendorId())) {
+            requireVendor(request.hotelVendorId(), Vendor.Category.HOTEL, "Hotel vendor not found: ");
+            auditService.record("OPERATIONS_HANDOFF", handoff.getId(), AuditAction.UPDATE, "hotel_vendor_id",
+                    handoff.getHotelVendorId() == null ? null : handoff.getHotelVendorId().toString(),
+                    request.hotelVendorId().toString());
+            handoff.setHotelVendorId(request.hotelVendorId());
+        }
+        if (request.transportVendorId() != null && !request.transportVendorId().equals(handoff.getTransportVendorId())) {
+            requireVendor(request.transportVendorId(), Vendor.Category.TRANSPORT, "Transport vendor not found: ");
+            auditService.record("OPERATIONS_HANDOFF", handoff.getId(), AuditAction.UPDATE, "transport_vendor_id",
+                    handoff.getTransportVendorId() == null ? null : handoff.getTransportVendorId().toString(),
+                    request.transportVendorId().toString());
+            handoff.setTransportVendorId(request.transportVendorId());
         }
         handoffs.save(handoff);
         return toResponse(handoff);
@@ -343,7 +356,11 @@ public class OperationsService {
     private OperationsHandoffResponse toResponse(OperationsHandoff h) {
         Booking booking = bookings.findById(h.getBookingId()).orElse(null);
         Trip trip = booking == null ? null : trips.findById(booking.getTripId()).orElse(null);
-        Guide guide = h.getGuideId() == null ? null : guides.findById(h.getGuideId()).orElse(null);
+        Vendor guide = h.getGuideId() == null ? null : vendors.findById(h.getGuideId()).orElse(null);
+        Vendor driver = h.getDriverId() == null ? null : vendors.findById(h.getDriverId()).orElse(null);
+        Vendor hotel = h.getHotelVendorId() == null ? null : vendors.findById(h.getHotelVendorId()).orElse(null);
+        Vendor transport = h.getTransportVendorId() == null ? null
+                : vendors.findById(h.getTransportVendorId()).orElse(null);
         String createdByName = booking == null || booking.getCreatedBy() == null ? null
                 : users.findById(booking.getCreatedBy()).map(User::getFullName).orElse(null);
         return new OperationsHandoffResponse(
@@ -353,12 +370,21 @@ public class OperationsService {
                 trip == null ? null : trip.getName(),
                 h.getBatchId(), h.getTravelDate(), h.getPax(),
                 h.getHotelStatus(), h.getTransportStatus(),
-                h.getGuideId(), guide == null ? null : guide.getFullName(),
-                h.getDriverId(), h.getPaymentStatus(), h.getTripSheetGeneratedAt(), h.getNotes(),
+                h.getGuideId(), guide == null ? null : guide.getName(),
+                h.getDriverId(), driver == null ? null : driver.getName(),
+                h.getHotelVendorId(), hotel == null ? null : hotel.getName(),
+                h.getTransportVendorId(), transport == null ? null : transport.getName(),
+                h.getPaymentStatus(), h.getTripSheetGeneratedAt(), h.getNotes(),
                 booking == null ? null : booking.getCustomerId(),
                 customerName(booking == null ? null : booking.getCustomerId()),
                 booking == null ? null : booking.getCreatedBy(),
                 createdByName, h.getCreatedAt(), h.getUpdatedAt());
+    }
+
+    private void requireVendor(UUID id, Vendor.Category category, String message) {
+        if (!vendors.existsByIdAndCategory(id, category)) {
+            throw new BadRequestException(message + id);
+        }
     }
 
     private String customerName(UUID customerId) {

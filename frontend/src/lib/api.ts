@@ -12,9 +12,16 @@ export type TripUpdatePayload = components["schemas"]["TripUpdateRequest"];
 export type Batch = components["schemas"]["BatchResponse"];
 export type BatchCreatePayload = components["schemas"]["BatchCreateRequest"];
 export type BatchUpdatePayload = components["schemas"]["BatchUpdateRequest"];
-export type Guide = components["schemas"]["GuideResponse"];
-export type GuideCreatePayload = components["schemas"]["GuideCreateRequest"];
-export type GuideUpdatePayload = components["schemas"]["GuideUpdateRequest"];
+/**
+ * Guides are the `category = GUIDE` slice of the vendor catalogue. The
+ * standalone `/api/guides` endpoints were retired when vendors landed
+ * (Module 2), but the trips page still called them, so the guides panel and
+ * the batch guide-assignment dropdown were 404ing at runtime. These aliases
+ * point the client at the real vendor routes.
+ */
+export type Guide = components["schemas"]["VendorResponse"];
+export type GuideCreatePayload = components["schemas"]["VendorCreateRequest"];
+export type GuideUpdatePayload = components["schemas"]["VendorUpdateRequest"];
 export type Booking = components["schemas"]["BookingResponse"];
 export type BookingCreatePayload = components["schemas"]["BookingCreateRequest"];
 export type BookingStatusPayload = components["schemas"]["BookingStatusRequest"];
@@ -182,13 +189,17 @@ export const api = {
   updateBatch: (id: string, payload: BatchUpdatePayload) =>
     request<Batch>(`/api/batches/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
-  getGuides: (active = true) => request<Guide[]>(`/api/guides${qs({ active })}`),
+  getGuides: (active = true) =>
+    request<Guide[]>(`/api/vendors${qs({ category: "GUIDE", active })}`),
 
   createGuide: (payload: GuideCreatePayload) =>
-    request<Guide>("/api/guides", { method: "POST", body: JSON.stringify(payload) }),
+    request<Guide>("/api/vendors", {
+      method: "POST",
+      body: JSON.stringify({ ...payload, category: "GUIDE" }),
+    }),
 
   updateGuide: (id: string, payload: GuideUpdatePayload) =>
-    request<Guide>(`/api/guides/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+    request<Guide>(`/api/vendors/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
   getBookings: (params: { status?: string; tripId?: string; batchId?: string; customerId?: string } = {}) =>
     request<Booking[]>(`/api/bookings${qs({ ...params })}`),

@@ -2,6 +2,8 @@ package com.securetravels.crm.trip;
 
 import com.securetravels.crm.common.security.CurrentUser;
 import com.securetravels.crm.trip.dto.BatchCreateRequest;
+import com.securetravels.crm.trip.dto.BatchGenerateRequest;
+import com.securetravels.crm.trip.dto.BatchGenerateResponse;
 import com.securetravels.crm.trip.dto.BatchResponse;
 import com.securetravels.crm.trip.dto.TripCreateRequest;
 import com.securetravels.crm.trip.dto.TripDetailResponse;
@@ -46,7 +48,7 @@ public class TripController {
     public List<TripResponse> list(@RequestParam(defaultValue = "true") boolean active) {
         return trips.list(active).stream()
                 .map(t -> new TripResponse(t.getId(), t.getName(), t.getSlug(), t.getCategory(),
-                        t.getBookingType(), t.getBaseCost(), t.getDurationDays(), t.isActive()))
+                        t.getBookingType(), t.getDifficulty(), t.getBaseCost(), t.getDurationDays(), t.isActive()))
                 .toList();
     }
 
@@ -87,5 +89,17 @@ public class TripController {
     public BatchResponse createBatch(@PathVariable UUID tripId, @Valid @RequestBody BatchCreateRequest request,
                                      @CurrentUser UserPrincipal caller) {
         return trips.createBatch(tripId, request, caller);
+    }
+
+    @Operation(summary = "Generate a season of departure batches from a recurrence rule",
+            description = "Module 3. Expands the rule to concrete dates and creates one batch per date in a "
+                    + "single transaction. Dates that already have a batch are reported in skippedDates "
+                    + "rather than failing the run, so an existing season can be extended.")
+    @PostMapping(value = "/{tripId}/batches/generate", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public BatchGenerateResponse generateSeason(@PathVariable UUID tripId,
+                                                @Valid @RequestBody BatchGenerateRequest request,
+                                                @CurrentUser UserPrincipal caller) {
+        return trips.generateSeason(tripId, request, caller);
     }
 }

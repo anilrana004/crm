@@ -20,6 +20,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/compliance/travellers/{travellerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-traveller checklist with required/verified items and % */
+        get: operations["traveller"];
+        /** Mark checklist items (VERIFIED is the green state; demote allowed) */
+        put: operations["mark"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhook/lead": {
         parameters: {
             query?: never;
@@ -40,6 +58,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/vendors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List vendors (optional category filter; active by default) */
+        get: operations["list_1"];
+        put?: never;
+        /** Create a vendor */
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/trips": {
         parameters: {
             query?: never;
@@ -48,10 +84,10 @@ export interface paths {
             cookie?: never;
         };
         /** List trips (default: active only, for filters/pickers) */
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         /** Create a catalogue trip */
-        post: operations["create_1"];
+        post: operations["create_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -76,6 +112,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/trips/{tripId}/batches/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a season of departure batches from a recurrence rule
+         * @description Module 3. Expands the rule to concrete dates and creates one batch per date in a single transaction. Dates that already have a batch are reported in skippedDates rather than failing the run, so an existing season can be extended.
+         */
+        post: operations["generateSeason"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments": {
         parameters: {
             query?: never;
@@ -84,7 +140,7 @@ export interface paths {
             cookie?: never;
         };
         /** List payment lines (scoped; booking / status / type filters) */
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         /** Record a payment line (advance / balance / full) against a booking */
         post: operations["record"];
@@ -153,28 +209,62 @@ export interface paths {
             cookie?: never;
         };
         /** List leads (filtered; SALES/OPS see only their own) */
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         /** Create a lead */
-        post: operations["create_2"];
+        post: operations["create_3"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/guides": {
+    "/api/documents/upload-url": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List guides (active by default) */
-        get: operations["list_4"];
+        get?: never;
         put?: never;
-        /** Create a guide */
-        post: operations["create_3"];
+        /** Request a presigned S3 PUT upload URL for a traveller document */
+        post: operations["uploadUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/documents/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm an upload: records the object and links it to the checklist */
+        post: operations["confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/compliance/batches/{batchId}/ready-for-departure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check whether the batch currently passes the READY_FOR_DEPARTURE gate */
+        get: operations["readyCheck"];
+        put?: never;
+        /** Mark the batch READY_FOR_DEPARTURE (409 if compliance is below the gate) */
+        post: operations["markReadyForDeparture"];
         delete?: never;
         options?: never;
         head?: never;
@@ -250,6 +340,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/vendors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a vendor */
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a vendor */
+        patch: operations["update"];
+        trace?: never;
+    };
     "/api/trips/{id}": {
         parameters: {
             query?: never;
@@ -258,14 +366,14 @@ export interface paths {
             cookie?: never;
         };
         /** Get a trip with its departure batches */
-        get: operations["get"];
+        get: operations["get_1"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Update a trip */
-        patch: operations["update"];
+        patch: operations["update_1"];
         trace?: never;
     };
     "/api/tasks/{id}/complete": {
@@ -344,14 +452,14 @@ export interface paths {
             cookie?: never;
         };
         /** Get one lead */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Edit lead fields (heat recomputed, per-field audit) */
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/leads/{id}/status": {
@@ -371,23 +479,6 @@ export interface paths {
         patch: operations["updateStatus_1"];
         trace?: never;
     };
-    "/api/guides/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Update a guide */
-        patch: operations["update_2"];
-        trace?: never;
-    };
     "/api/customers/{id}": {
         parameters: {
             query?: never;
@@ -396,7 +487,7 @@ export interface paths {
             cookie?: never;
         };
         /** Customer detail incl. trip history + marketing flags */
-        get: operations["get_2"];
+        get: operations["get_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -531,7 +622,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get one ops handoff (booking context, arrangements, receivable status, notes) */
-        get: operations["get_3"];
+        get: operations["get_4"];
         put?: never;
         post?: never;
         delete?: never;
@@ -590,6 +681,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List documents for a traveller (compliance uploads) */
+        get: operations["list_9"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dashboard/summary": {
         parameters: {
             query?: never;
@@ -630,7 +738,24 @@ export interface paths {
             cookie?: never;
         };
         /** List customers — search by name/mobile/email */
-        get: operations["list_9"];
+        get: operations["list_10"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/compliance/batches/{batchId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Batch compliance board (confirmed bookings only) */
+        get: operations["batch"];
         put?: never;
         post?: never;
         delete?: never;
@@ -647,7 +772,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get a booking with travellers */
-        get: operations["get_4"];
+        get: operations["get_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -729,6 +854,46 @@ export interface components {
             /** Format: int32 */
             revenuePct?: number;
         };
+        MarkChecklistItemRequest: {
+            /** @enum {string} */
+            item?: "ID_PROOF" | "MEDICAL_FITNESS" | "EMERGENCY_CONTACT" | "MINOR_CONSENT";
+            /** @enum {string} */
+            status?: "MISSING" | "IN_PROGRESS" | "VERIFIED";
+        };
+        MarkChecklistRequest: {
+            items?: components["schemas"]["MarkChecklistItemRequest"][];
+            emergencyContactName?: string;
+            emergencyContactPhone?: string;
+        };
+        ComplianceItemView: {
+            /** @enum {string} */
+            item?: "ID_PROOF" | "MEDICAL_FITNESS" | "EMERGENCY_CONTACT" | "MINOR_CONSENT";
+            required?: boolean;
+            /** @enum {string} */
+            status?: "MISSING" | "IN_PROGRESS" | "VERIFIED";
+            color?: string;
+            /** Format: uuid */
+            documentId?: string;
+        };
+        TravellerComplianceResponse: {
+            /** Format: uuid */
+            travellerId?: string;
+            fullName?: string;
+            /** Format: int32 */
+            age?: number;
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            tripId?: string;
+            /** Format: int32 */
+            requiredCount?: number;
+            /** Format: int32 */
+            verifiedCount?: number;
+            /** Format: int32 */
+            compliancePercent?: number;
+            color?: string;
+            items?: components["schemas"]["ComplianceItemView"][];
+        };
         WebhookLeadResponse: {
             ok?: boolean;
             duplicate?: boolean;
@@ -739,6 +904,38 @@ export interface components {
             ownerName?: string;
             note?: string;
         };
+        VendorCreateRequest: {
+            /** @enum {string} */
+            category: "GUIDE" | "HOTEL" | "TRANSPORT" | "DRIVER";
+            name: string;
+            phone?: string;
+            /** Format: email */
+            email?: string;
+            city?: string;
+            gstin?: string;
+            bankAccountRef?: string;
+            dailyRate?: number;
+            notes?: string;
+        };
+        VendorResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** @enum {string} */
+            category?: "GUIDE" | "HOTEL" | "TRANSPORT" | "DRIVER";
+            name?: string;
+            phone?: string;
+            email?: string;
+            city?: string;
+            gstin?: string;
+            bankAccountRef?: string;
+            dailyRate?: number;
+            notes?: string;
+            active?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
         TripCreateRequest: {
             name: string;
             slug?: string;
@@ -746,6 +943,8 @@ export interface components {
             category: "TREK" | "PILGRIMAGE" | "LEISURE" | "CUSTOM";
             /** @enum {string} */
             bookingType: "FIXED_BATCH" | "CUSTOM_FIT";
+            /** @enum {string} */
+            difficulty?: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT";
             baseCost: number;
             /** Format: int32 */
             durationDays: number;
@@ -766,12 +965,16 @@ export interface components {
             seatsBooked?: number;
             /** Format: int32 */
             available?: number;
+            /** Format: int32 */
+            fillPercent?: number;
+            /** @enum {string} */
+            capacityColor?: "GREEN" | "AMBER" | "RED";
             /** Format: uuid */
             guideId?: string;
             guideName?: string;
             transportPlan?: string;
             /** @enum {string} */
-            status?: "OPEN" | "CLOSED" | "CANCELLED";
+            status?: "OPEN" | "CLOSED" | "CANCELLED" | "READY_FOR_DEPARTURE";
         };
         TripDetailResponse: {
             /** Format: uuid */
@@ -782,6 +985,8 @@ export interface components {
             category?: "TREK" | "PILGRIMAGE" | "LEISURE" | "CUSTOM";
             /** @enum {string} */
             bookingType?: "FIXED_BATCH" | "CUSTOM_FIT";
+            /** @enum {string} */
+            difficulty?: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT";
             baseCost?: number;
             /** Format: int32 */
             durationDays?: number;
@@ -803,6 +1008,37 @@ export interface components {
             /** Format: uuid */
             guideId?: string;
             transportPlan?: string;
+        };
+        BatchGenerateRequest: {
+            recurrence: components["schemas"]["BatchRecurrence"];
+            /** Format: int32 */
+            maxCapacity: number;
+            /** Format: uuid */
+            guideId?: string;
+            transportPlan?: string;
+        };
+        BatchRecurrence: {
+            /** Format: date */
+            firstDeparture: string;
+            /** Format: date */
+            lastDeparture: string;
+            /** @enum {string} */
+            frequency: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** Format: int32 */
+            interval?: number;
+            weekdays?: ("MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY")[];
+        };
+        BatchGenerateResponse: {
+            /** Format: uuid */
+            tripId?: string;
+            /** Format: int32 */
+            requested?: number;
+            /** Format: int32 */
+            created?: number;
+            /** Format: int32 */
+            skipped?: number;
+            batches?: components["schemas"]["BatchResponse"][];
+            skippedDates?: string[];
         };
         PaymentCreateRequest: {
             /** Format: uuid */
@@ -866,6 +1102,13 @@ export interface components {
             guideName?: string;
             /** Format: uuid */
             driverId?: string;
+            driverName?: string;
+            /** Format: uuid */
+            hotelVendorId?: string;
+            hotelVendorName?: string;
+            /** Format: uuid */
+            transportVendorId?: string;
+            transportVendorName?: string;
             /** @enum {string} */
             paymentStatus?: "PENDING" | "PARTIAL" | "COMPLETED" | "OVERDUE" | "CANCELLED" | "REFUNDED";
             /** Format: date-time */
@@ -889,6 +1132,7 @@ export interface components {
             customerName: string;
             mobileNumber: string;
             whatsappNumber?: string;
+            /** Format: email */
             email?: string;
             /** @enum {string} */
             source: "GOOGLE_ADS" | "FACEBOOK_ADS" | "INSTAGRAM" | "WEBSITE" | "WHATSAPP" | "REFERRAL" | "JUSTDIAL" | "WALK_IN" | "B2B" | "EXISTING_CUSTOMER" | "OTHER";
@@ -952,20 +1196,73 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
         };
-        GuideCreateRequest: {
-            fullName: string;
-            phone?: string;
-            dailyRate?: number;
+        UploadUrlRequest: {
+            /** Format: uuid */
+            travellerId: string;
+            /** @enum {string} */
+            docType: "ID_PROOF" | "MEDICAL_CERT" | "TRIP_PHOTO" | "CONSENT_FORM";
         };
-        GuideResponse: {
+        UploadUrlResponse: {
+            uploadUrl?: string;
+            storageKey?: string;
+            objectUrl?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        ConfirmUploadRequest: {
+            storageKey: string;
+            /** @enum {string} */
+            relatedType: "TRAVELLER" | "BOOKING" | "LEAD";
+            /** @enum {string} */
+            docType: "ID_PROOF" | "MEDICAL_CERT" | "TRIP_PHOTO" | "CONSENT_FORM";
+            /** Format: uuid */
+            travellerId: string;
+            mimeType?: string;
+            /** Format: int64 */
+            sizeBytes?: number;
+        };
+        DocumentResponse: {
             /** Format: uuid */
             id?: string;
-            fullName?: string;
-            phone?: string;
-            dailyRate?: number;
-            active?: boolean;
+            /** @enum {string} */
+            relatedType?: "TRAVELLER" | "BOOKING" | "LEAD";
+            /** Format: uuid */
+            travellerId?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            /** @enum {string} */
+            docType?: "ID_PROOF" | "MEDICAL_CERT" | "TRIP_PHOTO" | "CONSENT_FORM";
+            storageKey?: string;
+            objectUrl?: string;
+            mimeType?: string;
+            /** Format: int64 */
+            sizeBytes?: number;
+            /** Format: uuid */
+            uploadedBy?: string;
             /** Format: date-time */
             createdAt?: string;
+        };
+        BatchComplianceResponse: {
+            /** Format: uuid */
+            batchId?: string;
+            /** Format: uuid */
+            tripId?: string;
+            tripName?: string;
+            /** Format: date */
+            departureDate?: string;
+            /** Format: int32 */
+            readyThresholdPercent?: number;
+            /** Format: int32 */
+            totalRequired?: number;
+            /** Format: int32 */
+            totalVerified?: number;
+            /** Format: int32 */
+            compliancePercent?: number;
+            color?: string;
+            readyForDeparture?: boolean;
+            /** Format: int32 */
+            remainingItems?: number;
+            travellers?: components["schemas"]["TravellerComplianceResponse"][];
         };
         BookingCreateRequest: {
             /** Format: uuid */
@@ -1063,8 +1360,23 @@ export interface components {
             role?: "SALES" | "OPS" | "MANAGER" | "ADMIN" | "CEO";
         };
         LoginRequest: {
+            /** Format: email */
             email: string;
             password: string;
+        };
+        VendorUpdateRequest: {
+            /** @enum {string} */
+            category?: "GUIDE" | "HOTEL" | "TRANSPORT" | "DRIVER";
+            name?: string;
+            phone?: string;
+            /** Format: email */
+            email?: string;
+            city?: string;
+            gstin?: string;
+            bankAccountRef?: string;
+            dailyRate?: number;
+            notes?: string;
+            active?: boolean;
         };
         TripUpdateRequest: {
             name?: string;
@@ -1073,6 +1385,8 @@ export interface components {
             category?: "TREK" | "PILGRIMAGE" | "LEISURE" | "CUSTOM";
             /** @enum {string} */
             bookingType?: "FIXED_BATCH" | "CUSTOM_FIT";
+            /** @enum {string} */
+            difficulty?: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT";
             baseCost?: number;
             /** Format: int32 */
             durationDays?: number;
@@ -1121,6 +1435,10 @@ export interface components {
             guideId?: string;
             /** Format: uuid */
             driverId?: string;
+            /** Format: uuid */
+            hotelVendorId?: string;
+            /** Format: uuid */
+            transportVendorId?: string;
         };
         NotificationResponse: {
             /** Format: uuid */
@@ -1138,6 +1456,7 @@ export interface components {
         };
         LeadUpdateRequest: {
             customerName?: string;
+            /** Format: email */
             email?: string;
             whatsappNumber?: string;
             destination?: string;
@@ -1158,12 +1477,6 @@ export interface components {
             /** @enum {string} */
             lostReason?: "PRICE_TOO_HIGH" | "DATES_UNAVAILABLE" | "CHOSE_COMPETITOR" | "WENT_SILENT" | "NOT_GENUINE" | "POSTPONED";
             note?: string;
-        };
-        GuideUpdateRequest: {
-            fullName?: string;
-            phone?: string;
-            dailyRate?: number;
-            active?: boolean;
         };
         CustomerUpdateRequest: {
             suggestOffer?: string;
@@ -1226,7 +1539,7 @@ export interface components {
             unassignGuide?: boolean;
             transportPlan?: string;
             /** @enum {string} */
-            status?: "OPEN" | "CLOSED" | "CANCELLED";
+            status?: "OPEN" | "CLOSED" | "CANCELLED" | "READY_FOR_DEPARTURE";
         };
         SalesUser: {
             /** Format: uuid */
@@ -1243,6 +1556,8 @@ export interface components {
             category?: "TREK" | "PILGRIMAGE" | "LEISURE" | "CUSTOM";
             /** @enum {string} */
             bookingType?: "FIXED_BATCH" | "CUSTOM_FIT";
+            /** @enum {string} */
+            difficulty?: "EASY" | "MODERATE" | "DIFFICULT" | "VERY_DIFFICULT";
             baseCost?: number;
             /** Format: int32 */
             durationDays?: number;
@@ -1287,32 +1602,32 @@ export interface components {
             hasOverdueLine?: boolean;
         };
         PageLeadResponse: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["LeadResponse"][];
             /** Format: int32 */
             number?: number;
-            first?: boolean;
-            last?: boolean;
-            /** Format: int32 */
-            numberOfElements?: number;
             sort?: components["schemas"]["SortObject"];
             pageable?: components["schemas"]["PageableObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            first?: boolean;
+            last?: boolean;
             empty?: boolean;
         };
         PageableObject: {
             /** Format: int64 */
             offset?: number;
             paged?: boolean;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
+            sort?: components["schemas"]["SortObject"];
             unpaged?: boolean;
         };
         SortObject: {
@@ -1462,6 +1777,56 @@ export interface operations {
             };
         };
     };
+    traveller: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                travellerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravellerComplianceResponse"];
+                };
+            };
+        };
+    };
+    mark: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path: {
+                travellerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkChecklistRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravellerComplianceResponse"];
+                };
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -1495,7 +1860,7 @@ export interface operations {
                     "application/json": components["schemas"]["WebhookLeadResponse"];
                 };
             };
-            /** @description Invalid payload / missing consent */
+            /** @description Invalid/oversized payload, or missing consent */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1536,6 +1901,55 @@ export interface operations {
     list_1: {
         parameters: {
             query?: {
+                category?: "GUIDE" | "HOTEL" | "TRANSPORT" | "DRIVER";
+                active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorResponse"][];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VendorCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorResponse"];
+                };
+            };
+        };
+    };
+    list_2: {
+        parameters: {
+            query?: {
                 active?: boolean;
             };
             header?: never;
@@ -1555,7 +1969,7 @@ export interface operations {
             };
         };
     };
-    create_1: {
+    create_2: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -1631,7 +2045,35 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    generateSeason: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path: {
+                tripId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchGenerateResponse"];
+                };
+            };
+        };
+    };
+    list_3: {
         parameters: {
             query: {
                 bookingId?: string;
@@ -1758,7 +2200,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query: {
                 ownerId?: string;
@@ -1792,7 +2234,7 @@ export interface operations {
             };
         };
     };
-    create_2: {
+    create_3: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -1818,29 +2260,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
-        parameters: {
-            query?: {
-                active?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GuideResponse"][];
-                };
-            };
-        };
-    };
-    create_3: {
+    uploadUrl: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -1851,9 +2271,57 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GuideCreateRequest"];
+                "application/json": components["schemas"]["UploadUrlRequest"];
             };
         };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadUrlResponse"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentResponse"];
+                };
+            };
+        };
+    };
+    readyCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -1861,7 +2329,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GuideResponse"];
+                    "application/json": components["schemas"]["BatchComplianceResponse"];
+                };
+            };
+        };
+    };
+    markReadyForDeparture: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path: {
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchComplianceResponse"];
                 };
             };
         };
@@ -2005,12 +2497,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TripDetailResponse"];
+                    "application/json": components["schemas"]["VendorResponse"];
                 };
             };
         };
     };
     update: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VendorUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorResponse"];
+                };
+            };
+        };
+    };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripDetailResponse"];
+                };
+            };
+        };
+    };
+    update_1: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -2142,7 +2684,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -2166,7 +2708,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -2222,35 +2764,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
-        parameters: {
-            query: {
-                caller: components["schemas"]["UserPrincipal"];
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GuideUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GuideResponse"];
-                };
-            };
-        };
-    };
-    get_2: {
+    get_3: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -2476,7 +2990,7 @@ export interface operations {
             };
         };
     };
-    get_3: {
+    get_4: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];
@@ -2571,6 +3085,29 @@ export interface operations {
             };
         };
     };
+    list_9: {
+        parameters: {
+            query: {
+                travellerId: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentResponse"][];
+                };
+            };
+        };
+    };
     summary_1: {
         parameters: {
             query: {
@@ -2617,7 +3154,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query: {
                 search?: string;
@@ -2640,7 +3177,29 @@ export interface operations {
             };
         };
     };
-    get_4: {
+    batch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchComplianceResponse"];
+                };
+            };
+        };
+    };
+    get_5: {
         parameters: {
             query: {
                 caller: components["schemas"]["UserPrincipal"];

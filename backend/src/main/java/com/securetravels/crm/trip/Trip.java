@@ -25,6 +25,7 @@ public class Trip extends Auditable {
 
     public enum Category { TREK, PILGRIMAGE, LEISURE, CUSTOM }
     public enum BookingType { FIXED_BATCH, CUSTOM_FIT }
+    public enum Difficulty { EASY, MODERATE, DIFFICULT, VERY_DIFFICULT }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,6 +44,12 @@ public class Trip extends Auditable {
     @Enumerated(EnumType.STRING)
     @Column(name = "booking_type", nullable = false, length = 30)
     private BookingType bookingType;
+
+    /** Difficulty rating for the medical-certificate compliance rule
+     *  (Phase 2 Module 1). NULL means the trip never demands a cert. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Difficulty difficulty;
 
     @Column(name = "base_cost", nullable = false, precision = 12, scale = 2)
     private BigDecimal baseCost;
@@ -69,6 +76,7 @@ public class Trip extends Auditable {
     public String getSlug() { return slug; }
     public Category getCategory() { return category; }
     public BookingType getBookingType() { return bookingType; }
+    public Difficulty getDifficulty() { return difficulty; }
     public BigDecimal getBaseCost() { return baseCost; }
     public int getDurationDays() { return durationDays; }
     public String getItinerary() { return itinerary; }
@@ -80,6 +88,7 @@ public class Trip extends Auditable {
     public void setSlug(String slug) { this.slug = slug; }
     public void setCategory(Category category) { this.category = category; }
     public void setBookingType(BookingType bookingType) { this.bookingType = bookingType; }
+    public void setDifficulty(Difficulty difficulty) { this.difficulty = difficulty; }
     public void setBaseCost(BigDecimal baseCost) { this.baseCost = baseCost; }
     public void setDurationDays(int durationDays) { this.durationDays = durationDays; }
     public void setItinerary(String itinerary) { this.itinerary = itinerary; }

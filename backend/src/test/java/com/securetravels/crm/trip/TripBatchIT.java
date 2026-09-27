@@ -22,7 +22,6 @@ class TripBatchIT extends BaseIT {
 
     @Autowired private TripRepository tripRepository;
     @Autowired private BatchRepository batchRepository;
-    @Autowired private GuideRepository guideRepository;
 
     @Test
     void managerCreatesTripWithAutoSlugAndCollisionSuffixesSecond() throws Exception {
@@ -162,10 +161,10 @@ class TripBatchIT extends BaseIT {
     }
 
     @Test
-    void guideLifecycleAndBatchAssignment() throws Exception {
+    void guideVendorLifecycleAndBatchAssignment() throws Exception {
         String token = managerToken();
 
-        String guideId = createGuide(token, "Suresh Sharma", "9876507777");
+        String guideId = createGuideVendor(token, "Suresh Sharma", "9876507777");
         String tripId = createTrip(token, "Valley of Flowers");
         String batchId = createBatch(token, tripId, "2026-07-20", 16, guideId);
 
@@ -174,18 +173,18 @@ class TripBatchIT extends BaseIT {
                 .andExpect(jsonPath("$.batches[0].guideId").value(guideId))
                 .andExpect(jsonPath("$.batches[0].guideName").value("Suresh Sharma"));
 
-        mockMvc.perform(get("/api/guides").header("Authorization", authHeader(token)))
+        mockMvc.perform(get("/api/vendors?category=GUIDE").header("Authorization", authHeader(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '" + guideId + "')]").exists());
 
-        mockMvc.perform(patch("/api/guides/{id}", guideId)
+        mockMvc.perform(patch("/api/vendors/{id}", guideId)
                         .header("Authorization", authHeader(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\": false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
 
-        mockMvc.perform(get("/api/guides").header("Authorization", authHeader(token)))
+        mockMvc.perform(get("/api/vendors?category=GUIDE").header("Authorization", authHeader(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '" + guideId + "')]").doesNotExist());
     }
@@ -249,12 +248,12 @@ class TripBatchIT extends BaseIT {
         return body;
     }
 
-    private String createGuide(String token, String name, String phone) throws Exception {
-        String created = mockMvc.perform(post("/api/guides")
+    private String createGuideVendor(String token, String name, String phone) throws Exception {
+        String created = mockMvc.perform(post("/api/vendors")
                         .header("Authorization", authHeader(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "fullName", name, "phone", phone, "dailyRate", 4500))))
+                                "category", "GUIDE", "name", name, "phone", phone, "dailyRate", 4500))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(created).get("id").asText();

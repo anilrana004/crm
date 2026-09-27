@@ -24,6 +24,7 @@ import com.securetravels.crm.operations.OperationsService;
 import com.securetravels.crm.trip.Batch;
 import com.securetravels.crm.trip.BatchRepository;
 import com.securetravels.crm.trip.BookingType;
+import com.securetravels.crm.trip.CapacityAlertService;
 import com.securetravels.crm.trip.SeatHold;
 import com.securetravels.crm.trip.SeatHoldRepository;
 import com.securetravels.crm.trip.Trip;
@@ -79,13 +80,14 @@ public class BookingService {
     private final OperationsService operationsService;
     private final Customer360Service customerService;
     private final DiscountPolicy discountPolicy;
+    private final CapacityAlertService capacityAlerts;
 
     public BookingService(BookingRepository bookings, TravellerRepository travellers,
                           SeatHoldRepository seatHolds, BatchRepository batches, TripRepository trips,
                           Customer360Repository customers, LeadRepository leads, UserRepository users,
                           AuditService auditService, LeadService leadService, PaymentService paymentService,
                           OperationsService operationsService, Customer360Service customerService,
-                          DiscountPolicy discountPolicy) {
+                          DiscountPolicy discountPolicy, CapacityAlertService capacityAlerts) {
         this.bookings = bookings;
         this.travellers = travellers;
         this.seatHolds = seatHolds;
@@ -100,6 +102,7 @@ public class BookingService {
         this.operationsService = operationsService;
         this.customerService = customerService;
         this.discountPolicy = discountPolicy;
+        this.capacityAlerts = capacityAlerts;
     }
 
     @Transactional
@@ -345,6 +348,10 @@ public class BookingService {
         seatHolds.save(hold);
 
         batch.setSeatsBooked(batch.getSeatsBooked() + numTravellers);
+        // Module 3: judge the scarcity crossing here, while the PESSIMISTIC_WRITE
+        // lock on this batch row is still held, so the alert is raised at most
+        // once even if two bookings for the last seats race each other.
+        capacityAlerts.onSeatsBooked(batch, trips.findById(batch.getTripId()).orElse(null));
         if (batch.getStatus() == Batch.Status.OPEN && batch.seatsAvailable() == 0) {
             batch.setStatus(Batch.Status.CLOSED);
             auditService.statusChange("BATCH", batch.getId(), "status", "OPEN", "CLOSED");

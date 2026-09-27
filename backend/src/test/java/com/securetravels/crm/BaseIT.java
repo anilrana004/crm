@@ -37,9 +37,10 @@ public abstract class BaseIT {
     @BeforeEach
     void truncateAll() {
         jdbcTemplate.execute("""
-                TRUNCATE audit_log, leads, customer360, trips, guides, batches, bookings,
+                TRUNCATE audit_log, leads, customer360, trips, vendors, batches, bookings,
                          travellers, seat_holds, payments, operations_handoffs, refresh_tokens,
-                         users, tasks, notifications, sales_targets, webhook_logs, assignment_state
+                         users, tasks, notifications, sales_targets, webhook_logs, assignment_state,
+                         documents, traveller_checklists
                 RESTART IDENTITY CASCADE""");
     }
 

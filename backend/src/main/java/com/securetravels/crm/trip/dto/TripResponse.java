@@ -11,6 +11,7 @@ public record TripResponse(
         String slug,
         Trip.Category category,
         Trip.BookingType bookingType,
+        Trip.Difficulty difficulty,
         BigDecimal baseCost,
         int durationDays,
         boolean active

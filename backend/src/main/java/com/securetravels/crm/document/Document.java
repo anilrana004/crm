@@ -25,7 +25,7 @@ import java.util.UUID;
 public class Document extends CreatedOnly {
 
     public enum RelatedType { TRAVELLER, BOOKING, LEAD }
-    public enum DocType { ID_PROOF, MEDICAL_CERT, TRIP_PHOTO }
+    public enum DocType { ID_PROOF, MEDICAL_CERT, TRIP_PHOTO, CONSENT_FORM }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -43,6 +43,25 @@ app:
       capacity: 20
       refill-per-window: 20
       window-minutes: 1
+  compliance:
+    ready-threshold-percent: ${COMPLIANCE_READY_THRESHOLD_PERCENT:100}
+    medical-threshold: ${COMPLIANCE_MEDICAL_THRESHOLD:DIFFICULT}
+  storage:
+    endpoint: ${STORAGE_ENDPOINT:http://127.0.0.1:9000}
+    region: ${STORAGE_REGION:us-east-1}
+    bucket: ${STORAGE_BUCKET:securetravels-documents}
+    access-key: ${STORAGE_ACCESS_KEY:minioadmin}
+    secret-key: ${STORAGE_SECRET_KEY:minioadmin}
+    presigned-ttl-seconds: ${STORAGE_PRESIGN_TTL_SECONDS:300}
+  capacity:
+    # Scarcity alert: fires once when fill first reaches this percent. Also the
+    # AMBER colour cut-off, so colour and alerting always agree.
+    alert-fill-percent: ${CAPACITY_ALERT_FILL_PERCENT:90}
+    # Near-departure viability: inside this many days, a departure with fewer
+    # than min-group-size booked (or below min-group-fill-percent) is escalated.
+    min-group-size: ${CAPACITY_MIN_GROUP_SIZE:6}
+    min-group-fill-percent: ${CAPACITY_MIN_GROUP_FILL_PERCENT:50}
+    min-group-lead-days: ${CAPACITY_MIN_GROUP_LEAD_DAYS:21}
 
 management:
   endpoints:

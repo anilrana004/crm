@@ -21,6 +21,7 @@ public record TripUpdateRequest(
 
         Trip.Category category,
         Trip.BookingType bookingType,
+        Trip.Difficulty difficulty,
 
         @DecimalMin(value = "0.0", message = "baseCost must not be negative")
         BigDecimal baseCost,

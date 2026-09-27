@@ -24,6 +24,8 @@ public record TripCreateRequest(
         @NotNull(message = "bookingType is required")
         Trip.BookingType bookingType,
 
+        Trip.Difficulty difficulty,
+
         @NotNull(message = "baseCost is required")
         @DecimalMin(value = "0.0", message = "baseCost must not be negative")
         BigDecimal baseCost,

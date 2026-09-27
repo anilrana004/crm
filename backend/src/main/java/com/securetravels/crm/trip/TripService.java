@@ -2,21 +2,32 @@ package com.securetravels.crm.trip;
 
 import com.securetravels.crm.common.audit.AuditAction;
 import com.securetravels.crm.common.audit.AuditService;
+import com.securetravels.crm.common.config.AppProperties;
 import com.securetravels.crm.common.exception.BadRequestException;
 import com.securetravels.crm.common.exception.ConflictException;
 import com.securetravels.crm.common.exception.ForbiddenException;
 import com.securetravels.crm.common.exception.NotFoundException;
 import com.securetravels.crm.common.util.XssSanitizer;
+import com.securetravels.crm.document.ComplianceService;
+import com.securetravels.crm.trip.dto.BatchGenerateRequest;
+import com.securetravels.crm.trip.dto.BatchGenerateResponse;
+import com.securetravels.crm.trip.dto.BatchRecurrence;
 import com.securetravels.crm.trip.dto.BatchResponse;
 import com.securetravels.crm.trip.dto.TripCreateRequest;
 import com.securetravels.crm.trip.dto.TripDetailResponse;
 import com.securetravels.crm.trip.dto.TripUpdateRequest;
 import com.securetravels.crm.user.Role;
 import com.securetravels.crm.user.UserPrincipal;
+import com.securetravels.crm.vendors.Vendor;
+import com.securetravels.crm.vendors.VendorRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -25,17 +36,24 @@ import java.util.function.Consumer;
 @Service
 public class TripService {
 
+    private static final Logger log = LoggerFactory.getLogger(TripService.class);
+
     private final TripRepository trips;
     private final BatchRepository batches;
-    private final GuideRepository guides;
+    private final VendorRepository vendors;
     private final AuditService auditService;
+    private final ComplianceService complianceService;
+    private final AppProperties props;
 
-    public TripService(TripRepository trips, BatchRepository batches, GuideRepository guides,
-                       AuditService auditService) {
+    public TripService(TripRepository trips, BatchRepository batches, VendorRepository vendors,
+                       AuditService auditService, ComplianceService complianceService,
+                       AppProperties props) {
         this.trips = trips;
         this.batches = batches;
-        this.guides = guides;
+        this.vendors = vendors;
         this.auditService = auditService;
+        this.complianceService = complianceService;
+        this.props = props;
     }
 
     @Transactional
@@ -47,6 +65,7 @@ public class TripService {
         trip.setSlug(nextAvailableSlug(resolveSlug(request.name(), request.slug())));
         trip.setCategory(request.category());
         trip.setBookingType(request.bookingType());
+        trip.setDifficulty(request.difficulty());
         trip.setBaseCost(request.baseCost());
         trip.setDurationDays(request.durationDays());
         trip.setItinerary(XssSanitizer.text(request.itinerary()));
@@ -89,6 +108,10 @@ public class TripService {
             auditChange(trip, "bookingType", trip.getBookingType().name(), request.bookingType().name(),
                     v -> trip.setBookingType(Trip.BookingType.valueOf(v)));
         }
+        if (request.difficulty() != null) {
+            auditChange(trip, "difficulty", trip.getDifficulty() == null ? null : trip.getDifficulty().name(),
+                    request.difficulty().name(), v -> trip.setDifficulty(Trip.Difficulty.valueOf(v)));
+        }
         auditChange(trip, "baseCost", trip.getBaseCost() == null ? null : trip.getBaseCost().toString(),
                 request.baseCost() == null ? null : request.baseCost().toString(),
                 v -> trip.setBaseCost(new BigDecimal(v)));
@@ -122,9 +145,7 @@ public class TripService {
         requireManager(caller);
 
         Trip trip = getTrip(tripId);
-        if (trip.getBookingType() != Trip.BookingType.FIXED_BATCH) {
-            throw new BadRequestException("CUSTOM_FIT trips have no departure batches");
-        }
+        requireFixedBatch(trip);
         if (batches.findByTripIdAndDepartureDate(tripId, request.departureDate()).isPresent()) {
             throw new ConflictException("Batch already exists for this trip on " + request.departureDate());
         }
@@ -139,6 +160,67 @@ public class TripService {
         auditService.record("BATCH", saved.getId(), AuditAction.CREATE, "departure_date",
                 null, saved.getDepartureDate().toString());
         return toBatchResponse(saved, trip);
+    }
+
+    /**
+     * Module 3 — bulk-create a whole season of departures from a recurrence rule.
+     * One transactional service method: the rule is expanded to concrete dates by
+     * a pure date loop ({@link BatchRecurrence#dates()}) and each date reuses the
+     * single-batch creation path above, so a generated batch is indistinguishable
+     * from a hand-created one.
+     *
+     * <p>All-or-nothing: a failure part-way rolls the whole season back rather
+     * than leaving a half-built schedule that nobody can tell is incomplete.
+     * Dates that already have a batch are reported in {@code skippedDates}
+     * instead of aborting the run, because extending an existing season is the
+     * normal way this endpoint is reused.
+     */
+    @Transactional
+    public BatchGenerateResponse generateSeason(UUID tripId, BatchGenerateRequest request,
+                                                UserPrincipal caller) {
+        requireManager(caller);
+
+        Trip trip = getTrip(tripId);
+        requireFixedBatch(trip);
+        resolveGuide(request.guideId());
+
+        List<LocalDate> dates;
+        try {
+            dates = request.recurrence().dates();
+        } catch (IllegalArgumentException ex) {
+            // Surface a malformed rule as a 400 rather than an opaque 500.
+            throw new BadRequestException("Invalid recurrence rule: " + ex.getMessage());
+        }
+        if (dates.isEmpty()) {
+            throw new BadRequestException("The recurrence rule produces no departure dates");
+        }
+        // Guide and transport plan are validated once above, not per date.
+        String transportPlan = XssSanitizer.text(request.transportPlan());
+
+        List<BatchResponse> created = new ArrayList<>();
+        List<LocalDate> skipped = new ArrayList<>();
+        for (LocalDate date : dates) {
+            if (batches.findByTripIdAndDepartureDate(tripId, date).isPresent()) {
+                skipped.add(date);
+                continue;
+            }
+            Batch batch = new Batch(tripId, date, request.maxCapacity());
+            batch.setGuideId(request.guideId());
+            batch.setTransportPlan(transportPlan);
+            batch.setStatus(Batch.Status.OPEN);
+            Batch saved = batches.save(batch);
+            auditService.record("BATCH", saved.getId(), AuditAction.CREATE, "departure_date",
+                    null, saved.getDepartureDate().toString());
+            created.add(toBatchResponse(saved, trip));
+        }
+
+        auditService.record("TRIP", tripId, AuditAction.UPDATE, "batches_generated",
+                null, created.size() + " created, " + skipped.size() + " skipped");
+        log.info("[batch-gen] trip={} created={} skipped={} window={}..{}",
+                tripId, created.size(), skipped.size(), dates.get(0), dates.get(dates.size() - 1));
+
+        return new BatchGenerateResponse(tripId, dates.size(), created.size(), skipped.size(),
+                created, skipped);
     }
 
     @Transactional(readOnly = true)
@@ -200,6 +282,15 @@ public class TripService {
             if (batch.getStatus() == Batch.Status.CANCELLED) {
                 throw new BadRequestException("A cancelled batch cannot change status");
             }
+            if (request.status() == Batch.Status.READY_FOR_DEPARTURE) {
+                var summary = complianceService.batchSummary(batch.getId());
+                if (!summary.readyForDeparture()) {
+                    throw new BadRequestException("Batch cannot be marked READY_FOR_DEPARTURE: compliance is "
+                            + summary.compliancePercent() + "% (required "
+                            + complianceService.readyThresholdPercent() + "%). Pending: " + summary.remainingItems()
+                            + " verified items short of the gate.");
+                }
+            }
             auditService.record("BATCH", batch.getId(), AuditAction.STATUS_CHANGE, "status",
                     batch.getStatus().name(), request.status().name());
             batch.setStatus(request.status());
@@ -215,9 +306,16 @@ public class TripService {
         return trips.findById(id).orElseThrow(() -> new NotFoundException("Trip not found: " + id));
     }
 
-    private void resolveGuide(UUID guideId) {
-        if (guideId != null && !guides.existsById(guideId)) {
-            throw new BadRequestException("Guide not found: " + guideId);
+    /** Only FIXED_BATCH trips are sold via departure batches (see Trip javadoc). */
+    private void requireFixedBatch(Trip trip) {
+        if (trip.getBookingType() != Trip.BookingType.FIXED_BATCH) {
+            throw new BadRequestException("CUSTOM_FIT trips have no departure batches");
+        }
+    }
+
+    private void resolveGuide(UUID vendorId) {
+        if (vendorId != null && !vendors.existsByIdAndCategory(vendorId, Vendor.Category.GUIDE)) {
+            throw new BadRequestException("Guide vendor not found: " + vendorId);
         }
     }
 
@@ -263,16 +361,15 @@ public class TripService {
                 .toList();
         return new TripDetailResponse(
                 trip.getId(), trip.getName(), trip.getSlug(), trip.getCategory(), trip.getBookingType(),
-                trip.getBaseCost(), trip.getDurationDays(), trip.getItinerary(), trip.getInclusions(),
-                trip.getExclusions(), trip.isActive(), trip.getCreatedAt(), trip.getUpdatedAt(), batchResponses);
+                trip.getDifficulty(), trip.getBaseCost(), trip.getDurationDays(), trip.getItinerary(),
+                trip.getInclusions(), trip.getExclusions(), trip.isActive(), trip.getCreatedAt(),
+                trip.getUpdatedAt(), batchResponses);
     }
 
     private BatchResponse toBatchResponse(Batch batch, Trip trip) {
         String guideName = batch.getGuideId() == null ? null
-                : guides.findById(batch.getGuideId()).map(Guide::getFullName).orElse(null);
-        return new BatchResponse(
-                batch.getId(), trip.getId(), batch.getDepartureDate(), batch.getMaxCapacity(),
-                batch.getSeatsBooked(), batch.seatsAvailable(), batch.getGuideId(), guideName,
-                batch.getTransportPlan(), batch.getStatus());
+                : vendors.findById(batch.getGuideId()).map(Vendor::getName).orElse(null);
+        return BatchResponse.of(batch, trip.getId(), guideName,
+                props.getCapacity().getAlertFillPercent());
     }
 }

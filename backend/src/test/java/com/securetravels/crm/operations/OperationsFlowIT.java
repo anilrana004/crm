@@ -136,7 +136,8 @@ class OperationsFlowIT extends BaseIT {
         String bookingId = createBookingFromCustomer(ravi, tripId, batchId, 2, "9862000005");
         confirm(ravi, bookingId);
 
-        String guideId = createGuide(manager, "Mohan Rawat");
+        String guideId = createVendor(manager, "GUIDE", "Mohan Rawat");
+        String driverId = createVendor(manager, "DRIVER", "Ramesh Kumar");
         String handoffId = handoffIdFor(bookingId);
 
         mockMvc.perform(patch("/api/operations/{id}/arrangements", handoffId)
@@ -146,12 +147,13 @@ class OperationsFlowIT extends BaseIT {
                                 "hotelStatus", "CONFIRMED",
                                 "transportStatus", "PENDING",
                                 "guideId", guideId,
-                                "driverId", UUID.randomUUID().toString()))))
+                                "driverId", driverId))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hotelStatus").value("CONFIRMED"))
                 .andExpect(jsonPath("$.transportStatus").value("PENDING"))
                 .andExpect(jsonPath("$.guideName").value("Mohan Rawat"))
-                .andExpect(jsonPath("$.driverId").isNotEmpty());
+                .andExpect(jsonPath("$.driverName").value("Ramesh Kumar"))
+                .andExpect(jsonPath("$.driverId").value(driverId));
 
         // sales cannot modify arrangements (ops surface)
         mockMvc.perform(patch("/api/operations/{id}/arrangements", handoffId)
@@ -404,12 +406,12 @@ class OperationsFlowIT extends BaseIT {
         return objectMapper.readTree(created).get("id").asText();
     }
 
-    private String createGuide(String token, String name) throws Exception {
-        String created = mockMvc.perform(post("/api/guides")
+    private String createVendor(String token, String category, String name) throws Exception {
+        String created = mockMvc.perform(post("/api/vendors")
                         .header("Authorization", authHeader(token))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "fullName", name, "phone", "9876500100", "dailyRate", 2500))))
+                                "category", category, "name", name, "phone", "9876500100", "dailyRate", 2500))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(created).get("id").asText();

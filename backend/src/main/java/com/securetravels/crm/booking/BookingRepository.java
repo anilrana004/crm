@@ -67,4 +67,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     /** Next sequential reference number for a given TOH-YYYY- prefix. */
     long countByBookingRefStartingWith(String prefix);
+
+    /** Confirmed bookings on a departure batch (compliance gate scope). */
+    List<Booking> findByBatchIdAndStatus(UUID batchId, Booking.Status status);
 }

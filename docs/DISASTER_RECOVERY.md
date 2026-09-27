@@ -1,8 +1,9 @@
 # SecureTravels CRM — Disaster Recovery
 
-> **Status: ratified since Phase 1 Prompt 3.** Formal tooling grows with the
-> phase plan; today the plan is a **manual, documented, drillable checklist**
-> that becomes a scheduled drill in Phase 2.
+> **Status: ratified since Phase 1 Prompt 3; automation added 2026-09-26.** The
+> plan below is now backed by a real, tested script (`scripts/backup-postgres.sh`)
+> plus a systemd timer. It is **not yet running in production** — no VPS exists
+> (see `RUNBOOK_PRODUCTION_DEPLOY.md`). PITR remains a Phase-2 item.
 
 ---
 
@@ -30,6 +31,50 @@ The long-term target is **managed Postgres with point-in-time recovery
 Backups must be encrypted (age/PGP) and stored off-VPS (S3 bucket, separate
 account) — never only on the same disk as the DB.
 
+### 2a. Implemented automation (2026-09-26)
+
+| Piece | Path | State |
+|---|---|---|
+| Backup script | `scripts/backup-postgres.sh` | ✅ **tested locally** — see drill log |
+| systemd unit + timer | `scripts/systemd/securetravels-backup.{service,timer}` | written, **not installed** (no host) |
+| Install instructions | `RUNBOOK_PRODUCTION_DEPLOY.md` §6 | pending provisioning |
+
+The script takes its bucket and credentials from the **same `STORAGE_*`
+environment variables the document-storage service already uses**, so there is
+one set of bucket credentials to rotate rather than two. Object keys are written
+under `backups/postgres/` — keep the backup bucket **separate** from the
+documents bucket, in a separate account, per the rule above.
+
+Design points that matter operationally:
+
+- `pg_dump -Fc` is **not** gzipped again — it is already compressed.
+- A dump is only uploaded if it is non-empty, above `BACKUP_MIN_BYTES`, **and**
+  passes `pg_restore --list` (which reads the archive TOC and therefore detects
+  a truncated or half-written file). A backup that cannot be verified is a
+  failure, not a success.
+- Every abnormal path exits non-zero with a named reason; a `mkdir` lock stops
+  overlapping runs.
+- Encryption at rest is **opt-in** via `BACKUP_AGE_PASSPHRASE` (requires `age`).
+  Set it in production — the bucket's own encryption is not sufficient for a
+  backup that may be restored by someone else.
+- Remote retention is a **bucket lifecycle policy**, not the script. The script
+  only prunes its own local staging copies (`BACKUP_RETAIN_DAYS`); it never
+  issues `DeleteObject`, so a bug in it cannot destroy old backups.
+
+Verify the signer at any time without touching the database:
+
+```bash
+./scripts/backup-postgres.sh --self-test
+```
+
+Remote retention policy to configure on the backup bucket:
+
+| Prefix | Days |
+|---|---|
+| `backups/postgres/` | 14 |
+| weekly consolidation | 8 weeks |
+| monthly archive | 12 months |
+
 ## 3. Restore-drill process (manual, today)
 
 **RTO target:** < 6 hours for a full recovery. **RPO target:** ≤ 24 hours
@@ -52,6 +97,8 @@ Drill steps (run at least once per quarter; record the timestamp + result):
 
 | Date | Backup used | Outcome | Notes |
 |---|---|---|---|
+| 2026-09-26 | `backup-postgres.sh` → live MinIO (`minio/minio` RELEASE.2025-09-07, local) → `securetravels-backups/backups/postgres/securetravels_crm-20260926T161823Z.dump` | **End-to-end VERIFIED through a real S3-compatible store** — upload HTTP 200; object downloaded back (82,341 B); `pg_restore --list` readable (161 entries); `pg_restore --clean --if-exists` into scratch `minio_restore` succeeded; row counts **identical to live** (leads 7, users 5, audit_log 12, flyway 10). | Closes the "signer verified, live PUT unproven" gap. **Found and fixed 2 real bugs** — see `RUNBOOK_PRODUCTION_DEPLOY.md` §0. Not production S3; no cloud credentials were available. |
+| 2026-09-26 | `scripts/backup-postgres.sh` → `pg_dump -Fc` of live `securetravels_crm` (80,958 bytes, 161 archive entries) | **Restore OK** — `pg_restore --clean --if-exists` into scratch `bk_restore_check`; **all 21 public tables restored with identical row counts** (leads 7, users 5, audit_log 11, batches 1, flyway_schema_history 10, …); `diff` of source vs restored counts **identical**; `sha256sum -c` **passed**. Parity check proven non-vacuous by tampering a restored table and confirming the mismatch is detected. Failure paths verified: unreachable port → exit 1 "pg_dump FAILED"; nonexistent DB → exit 1; missing `STORAGE_*` → exit 1 naming the variable; concurrent run → refused by lock; `--dry-run` → writes nothing. | Closeout drill; first use of the automated script |
 | 2026-09-11 | `pg_dump -Fc` of live `securetravels_crm` (90 KB, 20 tables) | **Restore OK** — `pg_restore --clean --if-exists` into scratch `securetravels_drill`; Flyway checksum validation passed on the restored schema (no migrations re-run); counts matched source (leads 15, 20 tables). Dump **0.4 s**, restore **0.7 s** → **measured RTO ≈ 1.1 s** (target < 6 h). Scratch DB dropped after. | Prompt-4 drill |
 | 2026-09-09 | `pg_dump -Fc` of live `securetravels_crm` (86 KB, 19 tables) | **Restore OK** — `pg_restore` into scratch `securetravels_restorecheck`; exact `COUNT(*)` matched source on all 19 tables (leads 15, bookings 6, payments 4, webhook_logs 36, audit 93, …). Dump **0.2 s**, restore **0.4 s** on local Postgres. Scratch DB dropped after. Boot-against-restore check: see Prompt-4 signoff verification (prod-profile boot). | prior drill |
 
@@ -68,5 +115,7 @@ Drill steps (run at least once per quarter; record the timestamp + result):
 ## 5. Ownership
 
 Backup cron + quarterly drill owner: **the person who provisions the VPS**
-(Phase-1 completion item, `DEPLOYMENT.md` §5). The automated backup
-pipelines and PITR land as part of the managed-Postgres work in Phase 2.
+(Phase-1 completion item — `RUNBOOK_PRODUCTION_DEPLOY.md` §6, and the ops
+checklist at `DEPLOYMENT.md` §6). The backup script and systemd timer now
+exist and are tested; installing and running them is part of provisioning.
+WAL/PITR archiving remains Phase-2 managed-Postgres work.

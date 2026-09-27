@@ -13,5 +13,7 @@ public record OpsArrangementsRequest(
         HandoffStatus hotelStatus,
         HandoffStatus transportStatus,
         UUID guideId,
-        UUID driverId) {
+        UUID driverId,
+        UUID hotelVendorId,
+        UUID transportVendorId) {
 }

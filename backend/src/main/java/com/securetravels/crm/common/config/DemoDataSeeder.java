@@ -99,20 +99,23 @@ public class DemoDataSeeder implements CommandLineRunner {
 
         List<Trip> demo = List.of(
                 trip("Kedarnath Yatra", "kedarnath-yatra", Trip.Category.PILGRIMAGE, Trip.BookingType.FIXED_BATCH,
+                        Trip.Difficulty.DIFFICULT,
                         "12000.00", 5, "Day 1: Haridwar → Gaurikund | Day 2: Trek to Kedarnath | ..."),
                 trip("Bali Family Honeymoon", "bali-family-honeymoon", Trip.Category.LEISURE, Trip.BookingType.CUSTOM_FIT,
+                        Trip.Difficulty.EASY,
                         "150000.00", 7, "Day 1: Arrive Denpasar | Day 2-6: Beaches, culture, spa | Day 7: Depart"));
         trips.saveAll(demo);
         log.info("[demo-data] seeded 2 demo trips");
     }
 
     private Trip trip(String name, String slug, Trip.Category category, Trip.BookingType bookingType,
-                      String baseCost, int durationDays, String itinerary) {
+                      Trip.Difficulty difficulty, String baseCost, int durationDays, String itinerary) {
         Trip t = new Trip();
         t.setName(name);
         t.setSlug(slug);
         t.setCategory(category);
         t.setBookingType(bookingType);
+        t.setDifficulty(difficulty);
         t.setBaseCost(new BigDecimal(baseCost));
         t.setDurationDays(durationDays);
         t.setItinerary(itinerary);

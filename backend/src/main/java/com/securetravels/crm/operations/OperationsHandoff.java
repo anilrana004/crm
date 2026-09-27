@@ -65,6 +65,12 @@ public class OperationsHandoff extends Auditable {
     @Column(name = "driver_id")
     private UUID driverId;
 
+    @Column(name = "hotel_vendor_id")
+    private UUID hotelVendorId;
+
+    @Column(name = "transport_vendor_id")
+    private UUID transportVendorId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", length = 20)
     private Payment.Status paymentStatus;
@@ -97,6 +103,8 @@ public class OperationsHandoff extends Auditable {
     public HandoffStatus getTransportStatus() { return transportStatus; }
     public UUID getGuideId() { return guideId; }
     public UUID getDriverId() { return driverId; }
+    public UUID getHotelVendorId() { return hotelVendorId; }
+    public UUID getTransportVendorId() { return transportVendorId; }
     public Payment.Status getPaymentStatus() { return paymentStatus; }
     public Instant getTripSheetGeneratedAt() { return tripSheetGeneratedAt; }
     public String getNotes() { return notes; }
@@ -105,6 +113,8 @@ public class OperationsHandoff extends Auditable {
     public void setTransportStatus(HandoffStatus transportStatus) { this.transportStatus = transportStatus; }
     public void setGuideId(UUID guideId) { this.guideId = guideId; }
     public void setDriverId(UUID driverId) { this.driverId = driverId; }
+    public void setHotelVendorId(UUID hotelVendorId) { this.hotelVendorId = hotelVendorId; }
+    public void setTransportVendorId(UUID transportVendorId) { this.transportVendorId = transportVendorId; }
     public void setPaymentStatus(Payment.Status paymentStatus) { this.paymentStatus = paymentStatus; }
     public void setTripSheetGeneratedAt(Instant tripSheetGeneratedAt) { this.tripSheetGeneratedAt = tripSheetGeneratedAt; }
     public void setNotes(String notes) { this.notes = notes; }

@@ -21,4 +21,20 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Batch b where b.id = :id")
     Optional<Batch> findWithLockById(@Param("id") UUID id);
+
+    /**
+     * Module 3 — candidates for the minimum-viable-group sweep. Narrow by the
+     * V11 latch and the departure window in SQL so the sweep never loads the
+     * whole (ever-growing) batch table, and so an already-alerted departure is
+     * never even considered twice.
+     */
+    @Query("""
+            select b from Batch b
+            where b.minGroupAlertedAt is null
+              and b.status = com.securetravels.crm.trip.Batch.Status.OPEN
+              and b.departureDate >= :today
+              and b.departureDate <= :horizon
+            order by b.departureDate asc
+            """)
+    List<Batch> findMinGroupAlertCandidates(@Param("today") LocalDate today, @Param("horizon") LocalDate horizon);
 }

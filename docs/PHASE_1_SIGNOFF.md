@@ -240,18 +240,27 @@ Boot/Security OSS patch release.
 
 ## 8. Open items for full production readiness
 
-| # | Item | Owner | Blocker for code sign-off? |
-|---|---|---|---|
-| 1 | ~~Rotate NVD API key~~ **RESOLVED 2026-09-11** — `owasp-run8.cmd` deleted after reference sweep; old key no longer reachable. Fresh key optional (OSV is primary monitor) | Ops/Security | No |
-| 2 | ~~Rotate `JWT_SECRET` + `WEBHOOK_SECRET`~~ **RESOLVED 2026-09-11** — rotated to strong values, backend rebooted under `prod`, post-rotation smoke passed (login 200, leads 200, signed webhook → lead created) | Ops/Security | No |
-| 3 | Enable **GitHub branch protection** (require CI + 1 review on `main`) — **repo created**; Dependabot alerts on; branch protection must be set manually (Settings → Branches; classic PAT can't do it via API) | Repo admin (web UI) | No (workflow gates present) |
-| 4 | **Provision VPS** + DNS `securetravels.in` → VPS; Nginx + Let's Encrypt | Ops | No (infrastructure prerequisite) |
-| 5 | **Automate daily `pg_dump`** cron + off-VPS backup (DISASTER_RECOVERY.md §2) | Ops | No (Phase 2 infra) |
-| 6 | **Dependency monitoring cadence established 2026-09-11** — no OSS fix exists in line (Boot 3.5 EOL); monthly RSS + quarterly OSV with accepted-risk documentation (§7.2); next re-check **2026-10-09**; remediation = Boot 4.x migration (Phase 2) | Dev | No (accepted-risk, exposure LOW-to-none) |
-| 7 | ~Enable **Dependabot alerts** on repo~ **DONE 2026-09-11** — enabled via API on `querytamasraapple-hub/securetravels-crm` after push | Repo admin | No |
-| 8 | ~~Cadence difference~~ **RESOLVED 2026-09-11** — +1/+3/+8/+15 cumulative implemented per Master Spec §19.2 (migration V7, tests green) | — | No |
+> **Phase 1 closeout status: complete for code sign-off (2026-09-26).**
+> Six loose-end chunks were closed in order: 404 routing handler, bootstrap-admin
+> mechanism, local env hygiene, production runbook + backup automation, ADR-0003
+> gate, and this signoff update. Test suite: **161 tests, 0 failures.**
+> Remaining items below are infrastructure/credential-gated and require
+> external human account access (VPS/DNS, GitHub branch protection) or a future
+> cadence date. **No code changes remain outstanding for Phase 1.**
+
+| # | Item | Owner | Blocker for code sign-off? | Closure status (2026-09-26) |
+|---|---|---|---|---|
+| 1 | ~~Rotate NVD API key~~ **RESOLVED 2026-09-11** — `owasp-run8.cmd` deleted after reference sweep; old key no longer reachable. Fresh key optional (OSV is primary monitor) | Ops/Security | No | Closed |
+| 2 | ~~Rotate `JWT_SECRET` + `WEBHOOK_SECRET`~~ **RESOLVED 2026-09-11** — rotated to strong values, backend rebooted under `prod`, post-rotation smoke passed (login 200, leads 200, signed webhook → lead created) | Ops/Security | No | Closed |
+| 3 | Enable **GitHub branch protection** (require CI + 1 review on `main`) — **repo created**; Dependabot alerts on; branch protection must be set manually (Settings → Branches; classic PAT can't do it via API) | Repo admin (web UI) | No (workflow gates present) | **Pending — requires manual GitHub account access / web-UI action** (not possible in this environment) |
+| 4 | **Provision VPS** + DNS `securetravels.in` → VPS; Nginx + Let's Encrypt | Ops | No (infrastructure prerequisite) | **Pending — requires hosting account credentials / DNS control (not available)**; documented in `RUNBOOK_PRODUCTION_DEPLOY.md` |
+| 5 | **Automate daily `pg_dump`** cron + off-VPS backup (DISASTER_RECOVERY.md §2) | Ops | No (Phase 2 infra) | **Automated tooling complete (2026-09-26).** `scripts/backup-postgres.sh` (self-tested, SigV4 verified against AWS reference vector, `pg_restore` parity + integrity gates) and systemd unit/timer written; **installation awaits VPS provisioning** — see `RUNBOOK_PRODUCTION_DEPLOY.md` §6 |
+| 6 | **Dependency monitoring cadence established 2026-09-11** — no OSS fix exists in line (Boot 3.5 EOL); monthly RSS + quarterly OSV with accepted-risk documentation (§7.2); next re-check **2026-10-09**; remediation = Boot 4.x migration (Phase 2) | Dev | No (accepted-risk, exposure LOW-to-none) | Open (cadence active) |
+| 7 | ~Enable **Dependabot alerts** on repo~ **DONE 2026-09-11** — enabled via API on `querytamasraapple-hub/securetravels-crm` after push | Repo admin | No | Closed |
+| 8 | ~~Cadence difference~~ **RESOLVED 2026-09-11** — +1/+3/+8/+15 cumulative implemented per Master Spec §19.2 (migration V7, tests green) | — | No | Closed |
 
 ---
 
-**Last updated:** 2026-09-11. Companion docs: `TESTING.md`, `SECURITY.md`,
-`DEPLOYMENT.md`, `DISASTER_RECOVERY.md`, `ARCHITECTURE.md`.
+**Last updated:** 2026-09-26 (Phase 1 closeout). Companion docs: `TESTING.md`,
+`SECURITY.md`, `DEPLOYMENT.md`, `DISASTER_RECOVERY.md`, `ARCHITECTURE.md`,
+`RUNBOOK_PRODUCTION_DEPLOY.md`.

@@ -1,0 +1,35 @@
+[Unit]
+Description=SecureTravels CRM PostgreSQL logical backup
+Documentation=file:/opt/securetravels/docs/RUNBOOK_PRODUCTION_DEPLOY.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Secrets live in a root-only env file, never in this unit file.
+#   install -m 600 -o root -g root /dev/null /etc/securetravels/backup.env
+#   systemctl edit securetravels-backup   -> EnvironmentFile=/etc/securetravels/backup.env
+EnvironmentFile=/etc/securetravels/backup.env
+
+# The script needs pg_dump on PATH; Ubuntu's libpq tools live in /usr/lib/postgresql/*/bin.
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/postgresql/16/bin
+
+WorkingDirectory=/opt/securetravels
+ExecStart=/opt/securetravels/scripts/backup-postgres.sh
+
+# Prove the signer still matches the AWS reference vector before every run.
+ExecStartPre=/opt/securetravels/scripts/backup-postgres.sh --self-test
+
+User=postgres
+Group=postgres
+
+# A backup job has no business listening on a socket.
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/securetravels
+# Refuse to run if the dump would land on the same disk as the database.
+# (The upload to the bucket is the real copy; this is only the local safety net.)
+TimeoutStartSec=1800

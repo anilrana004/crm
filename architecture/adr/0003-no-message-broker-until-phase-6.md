@@ -53,6 +53,23 @@ This is **not forgotten scope — it is sequenced.** Specifically:
 
 No trigger met → answer remains "no broker", even in review.
 
+## Phase 1 closeout — 2026-09-26
+
+At Phase 1 completion, the above decision is reaffirmed with the following
+**hard gate** for Phase 2:
+
+- **Redis:** cache-only in Phase 2 (shared rate limiting + read-through caching
+  where measured to help). No Redis Streams as a general-purpose event bus.
+- **RabbitMQ:** introduced **only** if volume justifies it, and **only** for the
+  specified Phase 2 async jobs (durable delivery of notification/reminder work
+  that cannot remain purely in-process under measured load). It must not be
+  used as a cross-service domain-event bus at this stage.
+- **Kafka:** **out of scope** for Phase 2. Evaluation remains deferred to
+  Phase 6 as stated above.
+
+This gate must be re-verified at the Phase 2 kickoff before any broker
+deployment proceeds. Any expansion of RabbitMQ's scope requires a new ADR.
+
 ## Consequences
 
 - Tests stay hermetic and deterministic (no queue fixtures needed).

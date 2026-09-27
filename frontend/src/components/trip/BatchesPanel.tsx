@@ -7,6 +7,7 @@ const STATUS_STYLE: Record<NonNullable<Batch["status"]>, string> = {
   OPEN: "bg-emerald-50 text-emerald-700",
   CLOSED: "bg-amber-50 text-amber-700",
   CANCELLED: "bg-red-50 text-red-700",
+  READY_FOR_DEPARTURE: "bg-sky-50 text-sky-700",
 };
 
 type BatchesPanelProps = {
@@ -103,7 +104,7 @@ export function BatchesPanel({ trip, guides, canManage, onChanged }: BatchesPane
                   <option value="">Unassigned</option>
                   {guides.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.fullName}
+                      {g.name}
                     </option>
                   ))}
                 </select>
@@ -217,7 +218,7 @@ function BatchRow({
               <option value="">Unassigned</option>
               {guides.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.fullName}
+                  {g.name}
                 </option>
               ))}
             </select>
