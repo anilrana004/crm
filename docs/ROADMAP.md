@@ -29,6 +29,13 @@ the same phase.
   OpenSearch introduced here, Prometheus+Grafana introduced here.
 - **Phase 4 — Enterprise Infra**: Keycloak/enterprise IAM, ABAC, Vault,
   multi-branch support (only if the business genuinely reaches that scale).
+  > **Reassessed 2026-09-28: NONE justified yet — phase closed at this gate,
+  > modules deferred (see `PHASE_4_REASSESSMENT.md`).** Findings: 5 users,
+  > single site, no SSO (Module 1); no second office (Modules 2 & 4);
+  > 8 secrets, one accessor (Module 3). Re-evaluate at the Phase 7 checkpoint
+  > or when any trigger fires: ~25+ active users or a real SSO/SAML need;
+  > a second office or funded regional manager; secret count > 15 or >3
+  > people needing distinct secret subsets; live payment/BSP credentials.
 - **Phase 5 — Marketing Platform**: Meta (Facebook/Instagram) full ads +
   lead-forms integration, Google Ads integration, campaign attribution,
   Communications Hub (unified WhatsApp/Email/SMS inbox).
