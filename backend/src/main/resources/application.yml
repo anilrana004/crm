@@ -17,6 +17,14 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  rabbitmq:
+    # Only consulted when app.messaging.mode=BROKER. Defaults are the standard
+    # local guest/guest so a broker is not required to boot or to run tests.
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    connection-timeout: ${RABBITMQ_CONNECT_TIMEOUT:3s}
 
 server:
   port: ${PORT:8080}
@@ -62,17 +70,69 @@ app:
     min-group-size: ${CAPACITY_MIN_GROUP_SIZE:6}
     min-group-fill-percent: ${CAPACITY_MIN_GROUP_FILL_PERCENT:50}
     min-group-lead-days: ${CAPACITY_MIN_GROUP_LEAD_DAYS:21}
+  messaging:
+    # INLINE = no broker required (tests, local dev). BROKER = publish to
+    # RabbitMQ and let the single consumer deliver. See ADR 0005.
+    mode: ${MESSAGING_MODE:INLINE}
+    exchange: ${MESSAGING_EXCHANGE:securetravels.communication}
+    queue: ${MESSAGING_QUEUE:securetravels.whatsapp.dispatch}
+    dead-letter-queue: ${MESSAGING_DLQ:securetravels.whatsapp.dispatch.dlq}
+    routing-key: ${MESSAGING_ROUTING_KEY:whatsapp.dispatch}
+    max-attempts: ${MESSAGING_MAX_ATTEMPTS:3}
+    retry-backoff-millis: ${MESSAGING_RETRY_BACKOFF_MS:2000}
+  whatsapp:
+    # SANDBOX records the send and returns a synthetic id; INTERAKT does real
+    # HTTP and needs INTERAKT_API_KEY. No live credentials yet — see
+    # docs/INTEGRATIONS.md.
+    mode: ${WHATSAPP_MODE:SANDBOX}
+    base-url: ${INTERAKT_BASE_URL:https://api.interakt.ai/v1/public}
+    api-key: ${INTERAKT_API_KEY:}
+    webhook-secret: ${INTERAKT_WEBHOOK_SECRET:dev-interakt-webhook-secret-change-me}
+    # Quoted: bare +91 is parsed by YAML as the integer 91, which would send
+    # "91" to Interakt instead of "+91" and fail recipient matching.
+    country-code: "${WHATSAPP_COUNTRY_CODE:+91}"
+    connect-timeout: ${INTERAKT_CONNECT_TIMEOUT:5s}
+    read-timeout: ${INTERAKT_READ_TIMEOUT:10s}
+    rate-limit-per-minute: ${INTERAKT_RATE_LIMIT_PER_MINUTE:300}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # prometheus: Module 5 scrape target. In dev this is unauthenticated and
+        # fine; in prod it MUST be blocked at the reverse proxy (see
+        # docs/OBSERVABILITY.md) because it discloses internal topology.
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: securetravels
+    distribution:
+      # Micrometer emits a *summary* for HTTP timings by default, which gives
+      # only _max and a client-computable quantile. Prometheus needs
+      # _bucket to evaluate histogram_quantile(), so without this the p95
+      # latency alert silently has no data and can never fire.
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+  prometheus:
+    metrics:
+      export:
+        # Explicit rather than relying on the default: the /actuator/prometheus
+        # endpoint only exists when this export is enabled, and a silently
+        # missing endpoint is indistinguishable from an idle application.
+        enabled: true
+  health:
+    rabbit:
+      # ADR 0005: the broker is degraded-tolerant, so a stopped RabbitMQ must
+      # not fail /actuator/health and take the whole app's readiness with it.
+      # Enable only once RabbitMQ is genuinely mandatory for the deployment.
+      enabled: ${RABBITMQ_HEALTH_ENABLED:false}
 
 springdoc:
   swagger-ui:

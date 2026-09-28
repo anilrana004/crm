@@ -14,7 +14,19 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        # Phase 3 Module 5. health stays first because the VPS load balancer
+        # polls it on the app port; prometheus is scraped from the host network
+        # only and must be denied at Nginx (docs/OBSERVABILITY.md) -- this
+        # endpoint has no authentication of its own and reveals queue names,
+        # pool sizes and route paths.
+        include: health,prometheus
+  metrics:
+    tags:
+      application: securetravels
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   endpoint:
     health:
       show-details: never

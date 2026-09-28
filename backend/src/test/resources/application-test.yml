@@ -17,6 +17,17 @@ app:
       refill-per-window: 10000
       window-minutes: 1
   bootstrap-demo-data: false
+  whatsapp:
+    # Pinned explicitly rather than inherited from the AppProperties default, so
+    # WhatsAppCommunicationIT signs with the same value and cannot silently pass
+    # if that default changes.
+    mode: SANDBOX
+    webhook-secret: test-interakt-webhook-secret
+    country-code: "+91"
+  messaging:
+    # Keep the inline retry loop instant; a retryable-failure test must not sleep.
+    max-attempts: 3
+    retry-backoff-millis: 1
 
 logging:
   level:

@@ -90,8 +90,8 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
+        <div className="absolute bottom-full right-0 z-50 mb-2 flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-2.5">
             <span className="text-sm font-semibold text-slate-900">Notifications</span>
             {feed.unread > 0 && (
               <button onClick={markAll} className="text-xs font-medium text-slate-500 hover:text-slate-800">
@@ -99,7 +99,7 @@ export function NotificationBell() {
               </button>
             )}
           </div>
-          <div className="max-h-96 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {feed.items.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-slate-400">You&apos;re all caught up.</p>
             ) : (

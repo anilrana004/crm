@@ -50,6 +50,35 @@ export type TargetUpsertPayload = Omit<
 > & { userId?: string | null };
 export type SalesUser = { id: string; fullName: string; email: string };
 
+// ---- Module 2 reports ----------------------------------------------------
+export type SeasonValue = "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+
+export type ReportFilterParams = {
+  consultantId?: string;
+  tripId?: string;
+  from?: string;
+  to?: string;
+  season?: SeasonValue;
+  source?: string;
+};
+
+export type SalesFunnelData = components["schemas"]["SalesFunnelResponse"];
+export type TripPerformanceData = components["schemas"]["TripPerformanceResponse"];
+export type TeamPerformanceData = components["schemas"]["TeamPerformanceResponse"];
+export type OperationsReadinessData = components["schemas"]["OperationsReadinessResponse"];
+export type CustomerInsightsData = components["schemas"]["CustomerInsightsResponse"];
+export type AuditSearchData = components["schemas"]["AuditSearchResponse"];
+
+export type AuditSearchParams = {
+  q?: string;
+  entity?: string;
+  actorId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+};
+
 export type NotificationFeed = {
   items: NotificationItem[];
   unread: number;
@@ -289,4 +318,22 @@ export const api = {
   deleteTarget: (id: string) => request<void>(`/api/targets/${id}`, { method: "DELETE" }),
 
   getSalesUsers: () => request<SalesUser[]>("/api/users/sales"),
+
+  getSalesFunnel: (params: ReportFilterParams = {}) =>
+    request<SalesFunnelData>(`/api/analytics/funnel${qs(params)}`),
+
+  getTripPerformance: (params: ReportFilterParams = {}) =>
+    request<TripPerformanceData>(`/api/analytics/trips${qs(params)}`),
+
+  getTeamPerformance: (params: ReportFilterParams = {}) =>
+    request<TeamPerformanceData>(`/api/analytics/team${qs(params)}`),
+
+  getOperationsReadiness: (params: ReportFilterParams = {}) =>
+    request<OperationsReadinessData>(`/api/analytics/operations${qs(params)}`),
+
+  getCustomerInsights: (params: ReportFilterParams = {}) =>
+    request<CustomerInsightsData>(`/api/analytics/customers${qs(params)}`),
+
+  getAuditLog: (params: AuditSearchParams = {}) =>
+    request<AuditSearchData>(`/api/analytics/audit${qs(params)}`),
 };

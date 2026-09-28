@@ -40,8 +40,17 @@ public abstract class BaseIT {
                 TRUNCATE audit_log, leads, customer360, trips, vendors, batches, bookings,
                          travellers, seat_holds, payments, operations_handoffs, refresh_tokens,
                          users, tasks, notifications, sales_targets, webhook_logs, assignment_state,
-                         documents, traveller_checklists
+                         documents, traveller_checklists,
+                         timeline_events, whatsapp_messages, sales_commission_ledger
                 RESTART IDENTITY CASCADE""");
+        // NB: whatsapp_templates is deliberately NOT truncated. It is reference
+        // data seeded by V12; emptying it would make every outbound-send test
+        // fail on "no enabled template" rather than on the behaviour under test.
+        //
+        // It does need resetting, though: `enabled` is a real operational
+        // toggle, so a test that disables a template to exercise a failure path
+        // would otherwise disable it for every test that runs afterwards.
+        jdbcTemplate.update("UPDATE whatsapp_templates SET enabled = true WHERE enabled = false");
     }
 
     protected UUID createUser(String email, String name, Role role, String password) {

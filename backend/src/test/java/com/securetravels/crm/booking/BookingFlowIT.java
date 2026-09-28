@@ -1,6 +1,8 @@
 package com.securetravels.crm.booking;
 
 import com.securetravels.crm.BaseIT;
+import com.securetravels.crm.commission.CommissionLedger;
+import com.securetravels.crm.commission.CommissionLedgerRepository;
 import com.securetravels.crm.customer.Customer360;
 import com.securetravels.crm.customer.Customer360Repository;
 import com.securetravels.crm.lead.LeadRepository;
@@ -37,6 +39,8 @@ class BookingFlowIT extends BaseIT {
     @Autowired private LeadRepository leadRepository;
     @Autowired private TaskRepository taskRepository;
     @Autowired private Customer360Repository customerRepository;
+
+    @Autowired private CommissionLedgerRepository commissionLedgerRepository;
     @Autowired private SeatHoldSweep seatHoldSweep;
 
     @Test
@@ -266,6 +270,123 @@ class BookingFlowIT extends BaseIT {
                 .isEqualTo("QUOTATION_SENT");
     }
 
+    /**
+     * The revenue-attribution snapshot must be written by the booking flow itself,
+     * not computed later by a report. If it were derived on read from
+     * leads.owner_id, reassigning the lead would silently rewrite this booking's
+     * history, which is the whole reason the ledger exists.
+     */
+    @Test
+    void confirmingABookingCreditsTheLedgerToTheLeadOwner() throws Exception {
+        String manager = managerToken();
+        String tripId = createTrip(manager, "Ledger Trek");
+        String batchId = createBatch(manager, tripId, "2026-09-20", 20);
+        String sales = salesToken("meera", "meera@securetravels.in");
+        String leadId = createLead(sales, tripId);
+
+        mockMvc.perform(patch("/api/leads/{id}/status", leadId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"QUOTATION_SENT\"}"))
+                .andExpect(status().isOk());
+
+        String bookingId = createBookingFromLead(sales, tripId, batchId, leadId);
+        mockMvc.perform(patch("/api/bookings/{id}/status", bookingId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CONFIRMED\"}"))
+                .andExpect(status().isOk());
+
+        CommissionLedger credit = commissionLedgerRepository
+                .findByBookingId(UUID.fromString(bookingId))
+                .orElseThrow(() -> new AssertionError("confirming a booking must credit the ledger"));
+
+        assertThat(credit.getConsultantId())
+                .as("the credit belongs to the lead's owner, not to whoever saved the booking")
+                .isEqualTo(UUID.fromString(userIdByEmail("meera@securetravels.in")));
+        assertThat(credit.getLeadId()).isEqualTo(UUID.fromString(leadId));
+        assertThat(credit.isRevoked()).isFalse();
+        assertThat(credit.getBookingStatusAtCredit())
+                .as("the snapshot records CONFIRMED, not a live relation to the booking")
+                .isEqualTo(Booking.Status.CONFIRMED);
+        assertThat(credit.getNetAmount()).isNotNull();
+    }
+
+    @Test
+    void cancellingRevokesTheCreditAndKeepsTheRow() throws Exception {
+        String manager = managerToken();
+        String tripId = createTrip(manager, "Revoke Trek");
+        String batchId = createBatch(manager, tripId, "2026-10-20", 20);
+        String sales = salesToken("suresh", "suresh@securetravels.in");
+        String leadId = createLead(sales, tripId);
+
+        mockMvc.perform(patch("/api/leads/{id}/status", leadId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"QUOTATION_SENT\"}"))
+                .andExpect(status().isOk());
+
+        String bookingId = createBookingFromLead(sales, tripId, batchId, leadId);
+        mockMvc.perform(patch("/api/bookings/{id}/status", bookingId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CONFIRMED\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/bookings/{id}/status", bookingId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CANCELLED\"}"))
+                .andExpect(status().isOk());
+
+        CommissionLedger credit = commissionLedgerRepository
+                .findByBookingId(UUID.fromString(bookingId))
+                .orElseThrow(() -> new AssertionError("the credit must survive cancellation, not be deleted"));
+
+        assertThat(credit.isRevoked()).isTrue();
+        assertThat(credit.getRevokeReason()).contains("cancelled");
+        assertThat(credit.effectiveNetAmount())
+                .as("a revoked credit contributes nothing to revenue")
+                .isEqualByComparingTo("0.00");
+        assertThat(credit.getNetAmount())
+                .as("but the original amount is still on the record for the dispute trail")
+                .isPositive();
+    }
+
+    /** A second confirm attempt is rejected upstream, so the credit must not duplicate. */
+    @Test
+    void aBookingIsNeverCreditedTwice() throws Exception {
+        String manager = managerToken();
+        String tripId = createTrip(manager, "Once Trek");
+        String batchId = createBatch(manager, tripId, "2026-11-20", 20);
+        String sales = salesToken("anjali", "anjali@securetravels.in");
+        String leadId = createLead(sales, tripId);
+
+        mockMvc.perform(patch("/api/leads/{id}/status", leadId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"QUOTATION_SENT\"}"))
+                .andExpect(status().isOk());
+
+        String bookingId = createBookingFromLead(sales, tripId, batchId, leadId);
+        mockMvc.perform(patch("/api/bookings/{id}/status", bookingId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CONFIRMED\"}"))
+                .andExpect(status().isOk());
+
+        // Re-confirming a CONFIRMED booking is a conflict, not a second credit.
+        mockMvc.perform(patch("/api/bookings/{id}/status", bookingId)
+                        .header("Authorization", authHeader(sales))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CONFIRMED\"}"))
+                .andExpect(status().is4xxClientError());
+
+        long credits = commissionLedgerRepository.findAll().stream()
+                .filter(c -> c.getBookingId().equals(UUID.fromString(bookingId)))
+                .count();
+        assertThat(credits).isEqualTo(1);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private String managerToken() throws Exception {
@@ -275,6 +396,10 @@ class BookingFlowIT extends BaseIT {
 
     private String managerUserId() {
         return userRepository.findByEmailIgnoreCase("manager@securetravels.in").orElseThrow().getId().toString();
+    }
+
+    private String userIdByEmail(String email) {
+        return userRepository.findByEmailIgnoreCase(email).orElseThrow().getId().toString();
     }
 
     private String raviUserId() {

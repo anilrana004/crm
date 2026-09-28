@@ -1,0 +1,16 @@
+# Grafana dashboard provisioning (Phase 3 Module 5).
+apiVersion: 1
+
+providers:
+  - name: securetravels
+    orgId: 1
+    folder: SecureTravels
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    # Lets an operator edit a dashboard in the UI without it being silently
+    # reverted by the next container start.
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

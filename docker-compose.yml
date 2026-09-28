@@ -40,5 +40,61 @@ services:
     depends_on:
       - backend
 
+  # ---------------------------------------------------------------------------
+  # Phase 3 Module 5 observability.
+  #
+  # Behind the `monitoring` profile on purpose: the default `docker compose up`
+  # must behave exactly as it did before this module existed, and these two
+  # containers are not needed to run the application. Start them with:
+  #
+  #   docker compose --profile monitoring up -d prometheus grafana
+  #
+  # Note this stack does not include MinIO or RabbitMQ. Those run on the Windows
+  # host for local development (see docs/OBSERVABILITY.md), so the messaging
+  # dashboard stays flat until MESSAGING_MODE=BROKER.
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      # Without this the "application is down" alert can never fire: a dead
+      # Prometheus silently reports every target as still up.
+      - --web.enable-lifecycle
+    volumes:
+      - ./ops/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - promdata:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    profiles: ["monitoring"]
+    environment:
+      # Dev-only default, matching the JWT_SECRET pattern above. Override in
+      # any shared environment.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin-local-dev-only}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
 volumes:
   pgdata:
+  promdata:
+  grafanadata:

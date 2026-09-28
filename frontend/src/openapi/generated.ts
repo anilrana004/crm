@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/whatsapp/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a WhatsApp template to a customer
+         * @description Queues the message and routes it per the active messaging mode. Returns once the message is recorded, not once it is delivered â track delivery on the subject's timeline or via /api/whatsapp/messages.
+         */
+        post: operations["send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhook/lead": {
         parameters: {
             query?: never;
@@ -52,6 +72,26 @@ export interface paths {
          * @description Public endpoint for the website enquiry form. Signature header X-Webhook-Signature: sha256=<hex> computed over the raw body with the shared webhook secret.
          */
         post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhook/interakt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Interakt webhook (delivery status + inbound replies)
+         * @description Public endpoint for Interakt. Signature header Interakt-Signature: sha256=<hex>, HMAC-SHA256 over the raw body. Acknowledges anything recognised, including duplicate deliveries, because Interakt retries non-2xx.
+         */
+        post: operations["receive"];
         delete?: never;
         options?: never;
         head?: never;
@@ -531,6 +571,46 @@ export interface paths {
         patch: operations["update_4"];
         trace?: never;
     };
+    "/api/whatsapp/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List WhatsApp templates
+         * @description The nine Module 4 templates with their Interakt code names and expected parameter counts. interaktName is what must exist in the Interakt dashboard.
+         */
+        get: operations["listTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/whatsapp/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Message history for a lead, customer, or booking
+         * @description Delivery state per outbound message, including failures and the attempt count.
+         */
+        get: operations["listMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users/sales": {
         parameters: {
             query?: never;
@@ -547,6 +627,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/timeline/{subjectType}/{subjectId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Communication timeline for a lead, customer, or booking
+         * @description Newest first. Every WhatsApp send, delivery, read, failure, and inbound reply is recorded. Access follows the owning record's rules: a salesperson sees their own, a manager/admin/CEO sees all.
+         */
+        get: operations["list_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasks": {
         parameters: {
             query?: never;
@@ -555,7 +655,7 @@ export interface paths {
             cookie?: never;
         };
         /** List follow-up tasks (SALES see own; managers see all) */
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
         post?: never;
         delete?: never;
@@ -605,7 +705,7 @@ export interface paths {
             cookie?: never;
         };
         /** List ops handoffs (SALES see only their own bookings' handoffs; filters optional) */
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         post?: never;
         delete?: never;
@@ -639,7 +739,7 @@ export interface paths {
             cookie?: never;
         };
         /** My notification feed (newest first) */
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
         post?: never;
         delete?: never;
@@ -689,7 +789,7 @@ export interface paths {
             cookie?: never;
         };
         /** List documents for a traveller (compliance uploads) */
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post?: never;
         delete?: never;
@@ -737,8 +837,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List customers — search by name/mobile/email */
-        get: operations["list_10"];
+        /** List customers â search by name/mobile/email */
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -790,6 +890,102 @@ export interface paths {
         };
         /** Current authenticated user */
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["trips"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["team"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["operations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["funnel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["customers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["audit"];
         put?: never;
         post?: never;
         delete?: never;
@@ -893,6 +1089,53 @@ export interface components {
             compliancePercent?: number;
             color?: string;
             items?: components["schemas"]["ComplianceItemView"][];
+        };
+        /** @description Queue a WhatsApp template to a customer */
+        WhatsAppSendRequest: {
+            /**
+             * @description Lead, Customer360, or Booking this message belongs to
+             * @enum {string}
+             */
+            subjectType: "LEAD" | "CUSTOMER" | "BOOKING";
+            /** Format: uuid */
+            subjectId: string;
+            /** @example BOOKING_CONFIRMED */
+            templateCode: string;
+            /** @example 9876500000 */
+            mobile: string;
+            /**
+             * @description Positional {{1}}..{{4}} values; count must match the template's expected_params
+             * @example [
+             *       "Asha",
+             *       "TOH-2026-0001",
+             *       "Manali",
+             *       "2026-11-02"
+             *     ]
+             */
+            bodyValues?: string[];
+        };
+        WhatsAppMessageResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** @enum {string} */
+            subjectType?: "LEAD" | "CUSTOMER" | "BOOKING";
+            /** Format: uuid */
+            subjectId?: string;
+            templateCode?: string;
+            recipientMobile?: string;
+            status?: string;
+            /** Format: int32 */
+            attempts?: number;
+            lastError?: string;
+            channelErrorCode?: string;
+            /** Format: date-time */
+            queuedAt?: string;
+            /** Format: date-time */
+            sentAt?: string;
+            /** Format: date-time */
+            deliveredAt?: string;
+            /** Format: date-time */
+            readAt?: string;
         };
         WebhookLeadResponse: {
             ok?: boolean;
@@ -1541,6 +1784,15 @@ export interface components {
             /** @enum {string} */
             status?: "OPEN" | "CLOSED" | "CANCELLED" | "READY_FOR_DEPARTURE";
         };
+        WhatsAppTemplateResponse: {
+            code?: string;
+            interaktName?: string;
+            label?: string;
+            languageCode?: string;
+            /** Format: int32 */
+            expectedParams?: number;
+            enabled?: boolean;
+        };
         SalesUser: {
             /** Format: uuid */
             id?: string;
@@ -1562,6 +1814,27 @@ export interface components {
             /** Format: int32 */
             durationDays?: number;
             active?: boolean;
+        };
+        TimelineResponse: {
+            /** Format: int64 */
+            seq?: number;
+            /** @enum {string} */
+            subjectType?: "LEAD" | "CUSTOMER" | "BOOKING";
+            /** Format: uuid */
+            subjectId?: string;
+            /** @enum {string} */
+            direction?: "INBOUND" | "OUTBOUND";
+            /** @enum {string} */
+            channel?: "WHATSAPP" | "EMAIL" | "SYSTEM";
+            /** @enum {string} */
+            kind?: "TEMPLATE_QUEUED" | "TEMPLATE_SENT" | "TEMPLATE_DELIVERED" | "TEMPLATE_READ" | "TEMPLATE_FAILED" | "REPLY_RECEIVED" | "MEDIA_RECEIVED" | "BUTTON_CLICKED" | "SYSTEM_NOTE";
+            templateCode?: string;
+            summary?: string;
+            body?: string;
+            provider?: string;
+            customerMobile?: string;
+            /** Format: date-time */
+            createdAt?: string;
         };
         Overall: {
             /** Format: int32 */
@@ -1719,6 +1992,225 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
         };
+        CostBasis: {
+            field?: string;
+            treatedAsPerPerson?: boolean;
+            isPartialCost?: boolean;
+            note?: string;
+        };
+        ReportFilter: {
+            /** Format: uuid */
+            consultantId?: string;
+            /** Format: uuid */
+            tripId?: string;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            /** @enum {string} */
+            season?: "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+            source?: string;
+        };
+        Trip: {
+            /** Format: uuid */
+            tripId?: string;
+            name?: string;
+            /** Format: int32 */
+            durationDays?: number;
+            /** Format: int64 */
+            batches?: number;
+            /** Format: int64 */
+            bookings?: number;
+            /** Format: int64 */
+            pax?: number;
+            /** Format: int64 */
+            seatsBooked?: number;
+            /** Format: int64 */
+            maxCapacity?: number;
+            fillRatePct?: number;
+            revenue?: number;
+            avgBookingValue?: number;
+            revenueLessBaseCost?: number;
+        };
+        TripPerformanceResponse: {
+            scope?: string;
+            filter?: components["schemas"]["ReportFilter"];
+            costBasis?: components["schemas"]["CostBasis"];
+            trips?: components["schemas"]["Trip"][];
+            totals?: components["schemas"]["Totals"];
+        };
+        Consultant: {
+            /** Format: uuid */
+            consultantId?: string;
+            fullName?: string;
+            email?: string;
+            /** Format: int64 */
+            leadsOwned?: number;
+            /** Format: int64 */
+            leadsBooked?: number;
+            conversionPct?: number;
+            /** Format: int64 */
+            bookingsCredited?: number;
+            /** Format: int64 */
+            creditsRevoked?: number;
+            revenue?: number;
+            /** Format: int64 */
+            slaTasksDue?: number;
+            /** Format: int64 */
+            slaTasksMet?: number;
+            slaCompliancePct?: number;
+        };
+        SlaBasis: {
+            onlyTasksWithSlaDeadline?: boolean;
+            note?: string;
+        };
+        TeamPerformanceResponse: {
+            scope?: string;
+            filter?: components["schemas"]["ReportFilter"];
+            slaBasis?: components["schemas"]["SlaBasis"];
+            consultants?: components["schemas"]["Consultant"][];
+            totals?: components["schemas"]["Totals"];
+        };
+        BatchReadiness: {
+            /** Format: uuid */
+            batchId?: string;
+            /** Format: uuid */
+            tripId?: string;
+            tripName?: string;
+            batchRef?: string;
+            departureDate?: unknown;
+            /** Format: int64 */
+            pax?: number;
+            /** Format: int64 */
+            seatsBooked?: number;
+            /** Format: int64 */
+            maxCapacity?: number;
+            fillRatePct?: number;
+            hotelStatus?: string;
+            transportStatus?: string;
+            paymentStatus?: string;
+            tripSheetGenerated?: boolean;
+            gaps?: string[];
+        };
+        IncidentSummary: {
+            available?: boolean;
+            reason?: string;
+            blockedBy?: string;
+            /** Format: int64 */
+            openIncidents?: number;
+            /** Format: int64 */
+            incidentsInPeriod?: number;
+        };
+        OperationsReadinessResponse: {
+            scope?: string;
+            filter?: components["schemas"]["ReportFilter"];
+            incidentSummary?: components["schemas"]["IncidentSummary"];
+            batches?: components["schemas"]["BatchReadiness"][];
+            vendors?: components["schemas"]["VendorScorecard"][];
+            totals?: components["schemas"]["Totals"];
+        };
+        VendorScorecard: {
+            /** Format: uuid */
+            vendorId?: string;
+            vendorName?: string;
+            category?: string;
+            scoreBasis?: string;
+            /** Format: int64 */
+            handoffsAssigned?: number;
+            /** Format: int64 */
+            handoffsConfirmed?: number;
+            completionPct?: number;
+            isReliabilityScore?: boolean;
+        };
+        SalesFunnelResponse: {
+            scope?: string;
+            filter?: components["schemas"]["ReportFilter"];
+            stages?: components["schemas"]["Stage"][];
+            totals?: components["schemas"]["Totals"];
+            bySource?: components["schemas"]["SourceBreakdown"][];
+        };
+        SourceBreakdown: {
+            source?: string;
+            /** Format: int64 */
+            leads?: number;
+            /** Format: int64 */
+            reachedQuotation?: number;
+            /** Format: int64 */
+            booked?: number;
+            conversionPct?: number;
+        };
+        Stage: {
+            code?: string;
+            label?: string;
+            /** Format: int64 */
+            reached?: number;
+            /** Format: int64 */
+            currentlyHere?: number;
+            conversionPct?: number;
+        };
+        Customer: {
+            /** Format: uuid */
+            customerId?: string;
+            fullName?: string;
+            email?: string;
+            mobileNumber?: string;
+            /** Format: int64 */
+            bookings?: number;
+            /** Format: int64 */
+            lastBookingYear?: number;
+            lifetimeValue?: number;
+            repeat?: boolean;
+            atChurnRisk?: boolean;
+            churnReason?: string;
+        };
+        CustomerInsightsResponse: {
+            scope?: string;
+            filter?: components["schemas"]["ReportFilter"];
+            valueBasis?: components["schemas"]["ValueBasis"];
+            totals?: components["schemas"]["Totals"];
+            topDestinations?: string[];
+            customers?: components["schemas"]["Customer"][];
+        };
+        ValueBasis: {
+            source?: string;
+            liveComputation?: boolean;
+            note?: string;
+        };
+        AuditSearchResponse: {
+            query?: string;
+            /** @enum {string} */
+            mode?: "TEXT" | "STRUCTURED";
+            /** Format: int64 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            hits?: components["schemas"]["Hit"][];
+        };
+        Hit: {
+            /** Format: uuid */
+            id?: string;
+            entity?: string;
+            /** Format: uuid */
+            entityId?: string;
+            action?: string;
+            field?: string;
+            oldValue?: string;
+            newValue?: string;
+            /** Format: uuid */
+            actorId?: string;
+            actorName?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            seq?: number;
+            matchedBy?: string;
+            /** Format: double */
+            ftsRank?: number;
+            /** Format: double */
+            trigramSimilarity?: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -1827,6 +2319,32 @@ export interface operations {
             };
         };
     };
+    send: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WhatsAppMessageResponse"];
+                };
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -1894,6 +2412,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WebhookLeadResponse"];
+                };
+            };
+        };
+    };
+    receive: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Interakt-Signature"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description Event accepted (applied=0 means duplicate or unknown type) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Missing or invalid HMAC signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -2872,6 +3429,50 @@ export interface operations {
             };
         };
     };
+    listTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WhatsAppTemplateResponse"][];
+                };
+            };
+        };
+    };
+    listMessages: {
+        parameters: {
+            query: {
+                subjectType: "LEAD" | "CUSTOMER" | "BOOKING";
+                subjectId: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WhatsAppMessageResponse"][];
+                };
+            };
+        };
+    };
     sales: {
         parameters: {
             query?: never;
@@ -2893,6 +3494,31 @@ export interface operations {
         };
     };
     list_6: {
+        parameters: {
+            query: {
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path: {
+                subjectType: "LEAD" | "CUSTOMER" | "BOOKING";
+                subjectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TimelineResponse"][];
+                };
+            };
+        };
+    };
+    list_7: {
         parameters: {
             query: {
                 leadId?: string;
@@ -2963,7 +3589,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query: {
                 travelDateFrom?: string;
@@ -3014,7 +3640,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query: {
                 unreadOnly?: boolean;
@@ -3085,7 +3711,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query: {
                 travellerId: string;
@@ -3154,7 +3780,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query: {
                 search?: string;
@@ -3241,6 +3867,175 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["UserInfo"];
+                };
+            };
+        };
+    };
+    trips: {
+        parameters: {
+            query: {
+                consultantId?: string;
+                tripId?: string;
+                from?: string;
+                to?: string;
+                season?: "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+                source?: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TripPerformanceResponse"];
+                };
+            };
+        };
+    };
+    team: {
+        parameters: {
+            query: {
+                consultantId?: string;
+                tripId?: string;
+                from?: string;
+                to?: string;
+                season?: "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+                source?: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TeamPerformanceResponse"];
+                };
+            };
+        };
+    };
+    operations: {
+        parameters: {
+            query: {
+                consultantId?: string;
+                tripId?: string;
+                from?: string;
+                to?: string;
+                season?: "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+                source?: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["OperationsReadinessResponse"];
+                };
+            };
+        };
+    };
+    funnel: {
+        parameters: {
+            query: {
+                consultantId?: string;
+                tripId?: string;
+                from?: string;
+                to?: string;
+                season?: "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+                source?: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SalesFunnelResponse"];
+                };
+            };
+        };
+    };
+    customers: {
+        parameters: {
+            query: {
+                consultantId?: string;
+                tripId?: string;
+                from?: string;
+                to?: string;
+                season?: "SPRING" | "MONSOON" | "AUTUMN" | "WINTER";
+                source?: string;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CustomerInsightsResponse"];
+                };
+            };
+        };
+    };
+    audit: {
+        parameters: {
+            query: {
+                q?: string;
+                entity?: string;
+                actorId?: string;
+                from?: string;
+                to?: string;
+                page?: number;
+                size?: number;
+                caller: components["schemas"]["UserPrincipal"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AuditSearchResponse"];
                 };
             };
         };

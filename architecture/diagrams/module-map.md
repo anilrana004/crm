@@ -22,11 +22,11 @@ flowchart TB
     subgraph phase2["PHASE 2 — operations & compliance"]
         documents[documents]
         vendors[vendors]
+        communications[communications — Interakt WhatsApp + timeline]
     end
 
     subgraph phase5["PHASE 5 — marketing"]
         marketing[marketing]
-        communications[communications]
     end
 
     subgraph phase6["PHASE 6 — automation"]
@@ -73,7 +73,8 @@ flowchart TB
     classDef inf fill:#f3f4f6,stroke:#374151
     class identity,leads,trips,bookings,payments,operations,customers,tasks,audit,dashboard,webhook ph1
     class documents,vendors ph2
-    class marketing,communications ph5
+    class communications ph2
+    class marketing ph5
     class automation ph6
     class finance,reporting ph9
     class common inf
@@ -88,7 +89,8 @@ Same map, as a phase × module table (the spec authorities are
 | 2 | documents, vendors (+ Redis, RabbitMQ, automation rules full form) |
 | 3 | mobile-ops, reporting suite, OpenSearch, Prometheus/Grafana |
 | 4 (scale-gated) | Keycloak IAM, ABAC, Vault, multi-branch |
-| 5 | marketing (Meta/Google), communications hub |
+| 4 | communications (Interakt WhatsApp, unified timeline) |
+| 5 | marketing (Meta/Google) |
 | 6 | automation workflow engine (first Kafka *evaluation*) |
 | 7 | sales depth (accounts/opportunities/forecast/commission) |
 | 8 (reassess) | service/support |

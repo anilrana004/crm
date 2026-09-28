@@ -1,0 +1,216 @@
+# Alert rules (Phase 3 Module 5).
+#
+# The first three are the conditions named in the Phase 3 brief: a growing
+# dead-letter queue, an error-rate spike, and an exhausted connection pool.
+#
+# Every expression uses a metric name verified against a real scrape and pinned
+# by PrometheusEndpointIT, so a renamed Micrometer metric breaks the test suite
+# before it breaks an alert.
+#
+# `for:` durations are deliberately not zero. Every one of these conditions has a
+# benign cause at least once a day (a deploy, a burst, a slow query), and a
+# paging alert that fires on it trains people to ignore the alert.
+
+groups:
+  - name: securetravels.messaging
+    interval: 30s
+    rules:
+      # ---- The condition the roadmap names first: a growing DLQ. ----
+      #
+      # `deriv(...) > 0` on its own would fire on a single message that happens
+      # to sit at a flat non-zero depth, because deriv() of a constant series is
+      # ~0 but floating point noise is not exactly 0. Requiring a non-zero floor
+      # as well makes this "messages are accumulating", not "a message exists".
+      - alert: SecureTravelsDeadLetterQueueGrowing
+        expr: >-
+          securetravels_rabbitmq_queue_depth{queue="securetravels.whatsapp.dispatch.dlq"} > 0
+          and deriv(securetravels_rabbitmq_queue_depth{queue="securetravels.whatsapp.dispatch.dlq"}[30m]) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WhatsApp dead-letter queue is accumulating messages"
+          description: >-
+            The DLQ has held at least one undeliverable message for 10 minutes and
+            is still growing. Messages here are customer-facing notifications that
+            exhausted their retry budget, so customers are not being reached.
+            Inspect with: rabbitmqctl list_queues name messages
+
+      - alert: SecureTravelsDeadLetterQueueNotEmpty
+        expr: securetravels_rabbitmq_queue_depth{queue="securetravels.whatsapp.dispatch.dlq"} > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WhatsApp dead-letter queue is not empty"
+          description: >-
+            At least one message has been dead-lettered for 15 minutes. It may be a
+            single poison message rather than an active failure, but it will never
+            be retried on its own.
+
+      # A backlog that is not shrinking means dispatch has fallen behind the send
+      # rate. Distinct from the DLQ alert: nothing has failed yet.
+      - alert: SecureTravelsDispatchQueueBacklogGrowing
+        expr: >-
+          securetravels_rabbitmq_queue_depth{queue="securetravels.whatsapp.dispatch"} > 10
+          and deriv(securetravels_rabbitmq_queue_depth{queue="securetravels.whatsapp.dispatch"}[30m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WhatsApp dispatch queue is backing up"
+          description: >-
+            Outbound notifications are queueing faster than they are being sent.
+            The listener is single-threaded by design (Interakt quota is per
+            account), so sustained growth needs either capacity or throttling.
+
+      # ---- Blindness alerts. ----
+      #
+      # The depth gauges are cached by a scheduled sweep. If the broker becomes
+      # unreadable the last value is retained on purpose, which means the depth
+      # can look healthy while being wrong. These two make that state loud instead
+      # of quietly wrong.
+      - alert: SecureTravelsQueueMetricsStale
+        expr: securetravels_rabbitmq_queue_metrics_up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RabbitMQ depth metrics are not being read from the broker"
+          description: >-
+            securetravels_rabbitmq_queue_metrics_up has been 0 for 5 minutes. Either
+            app.messaging.mode is INLINE (expected, and then queue depth is
+            meaningless) or the broker is unreachable and the displayed queue depth
+            is a stale value. Check the mode before acting.
+
+      - alert: SecureTravelsQueueMetricsStaleWhileBrokerMode
+        expr: >-
+          securetravels_rabbitmq_queue_metrics_up == 0
+          and securetravels_rabbitmq_queue_metrics_stale_seconds < 600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Messaging is in BROKER mode but the broker cannot be read"
+          description: >-
+            The application is configured for BROKER mode and the metrics sweep has
+            never succeeded. Outbound WhatsApp is not flowing and every send is
+            failing silently into the retry path.
+
+  - name: securetravels.http
+    interval: 30s
+    rules:
+      # ---- The condition the roadmap names second: an error-rate spike. ----
+      #
+      # Keyed on status=~"5.." rather than the `error` label: on this
+      # application Micrometer reports error="none" for 4xx AND for a 500 with no
+      # exception, so an error-rate built on `error` would read a permanent 0.
+      # A 5xx-only numerator also keeps "someone typed a bad id" from paging.
+      - alert: SecureTravelsHighServerErrorRate
+        expr: >-
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 0.001)
+          > 0.05
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Over 5% of requests are returning 5xx"
+          description: "Server error ratio has exceeded 5% for 10 minutes."
+
+      - alert: SecureTravelsHighServerErrorCount
+        # Absolute floor, so a 1-request-per-hour service cannot page on a
+        # single failure by having a 100% ratio.
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 0.5 server errors per second"
+          description: "Sustained 5xx throughput; check which route via the uri label."
+
+      - alert: SecureTravelsHighP95Latency
+        expr: >-
+          histogram_quantile(0.95,
+            sum by (le, uri) (rate(http_server_requests_seconds_bucket[10m]))
+          ) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 request latency above 1.5s on {{ $labels.uri }}"
+          description: "Slow endpoint; the uri label is the route pattern, not a raw path."
+
+  - name: securetravels.datastore
+    interval: 30s
+    rules:
+      # ---- The condition the roadmap names third: pool exhaustion. ----
+      #
+      # `pending` is the honest signal: it counts threads blocked waiting for a
+      # connection. Saturation alone is not a fault, but pending>0 for 5 minutes
+      # means requests are queueing for the database.
+      - alert: SecureTravelsConnectionPoolExhausted
+        expr: hikaricp_connections_pending > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Threads are blocked waiting for a database connection"
+          description: >-
+            HikariCP has had pending connection requests for 5 minutes. The pool
+            maximum is {{ $value | printf "%.0f" }}; either raise it, or find the
+            query holding connections open.
+
+      - alert: SecureTravelsConnectionPoolNearExhaustion
+        expr: >-
+          hikaricp_connections_active
+          /
+          clamp_min(hikaricp_connections_max, 1)
+          > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Connection pool above 90% utilisation"
+          description: "Sustained high pool utilisation; no requests blocked yet."
+
+  - name: securetravels.jvm
+    interval: 30s
+    rules:
+      - alert: SecureTravelsHighHeapUsage
+        expr: >-
+          sum(jvm_memory_used_bytes{area="heap"})
+          /
+          clamp_min(sum(jvm_memory_max_bytes{area="heap"}), 1)
+          > 0.85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap above 85%"
+          description: "Sustained heap pressure; watch for GC thrash before it becomes an outage."
+
+      - alert: SecureTravelsThreadCountHigh
+        expr: jvm_threads_live_threads > 400
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 400 live JVM threads"
+          description: "Suspect a connection or thread leak."
+
+  - name: securetravels.availability
+    interval: 30s
+    rules:
+      - alert: SecureTravelsBackendDown
+        expr: up{job="securetravels-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The application is not scrapeable"
+          description: >-
+            Prometheus cannot reach /actuator/prometheus. The process may be down, or
+            the endpoint may be blocked. Note this alert also fires if the endpoint
+            is merely unreachable from Prometheus while the app is fine.

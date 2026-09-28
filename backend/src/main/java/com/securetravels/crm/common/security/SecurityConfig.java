@@ -38,6 +38,13 @@ public class SecurityConfig {
             "/api/auth/logout",
             "/api/webhook/**",
             "/actuator/health",
+            // Phase 3 Module 5. Prometheus scrapes without credentials by
+            // default, so requiring a JWT here means the module silently scrapes
+            // nothing. This is permitted in the same way /actuator/health is, and
+            // is therefore REQUIRED to be denied at the reverse proxy in
+            // production: it has no authentication of its own and discloses
+            // queue names, pool sizes and route paths. See docs/OBSERVABILITY.md.
+            "/actuator/prometheus",
             "/api/health",
             "/v3/api-docs/**",
             "/docs/**",

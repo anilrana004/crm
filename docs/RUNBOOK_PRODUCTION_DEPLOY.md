@@ -23,10 +23,12 @@
 
 ## 0. What is real vs. what is aspirational
 
-| Area | Status 2026-09-26 |
+| Area | Status 2026-09-27 |
 |---|---|
-| Application builds, tests, boots in `prod` profile | ✅ **verified** (215 tests green; prod boot + health + login exercised) |
-| Flyway migration chain V1–V11 | ✅ **verified** (applied cleanly to an existing DB and to fresh DBs) |
+| Application builds, tests, boots in `prod` profile | ✅ **verified** (256 tests green; prod boot + health + login exercised) |
+| Flyway migration chain V1–V12 | ✅ **verified** (V12 applied cleanly to an existing DB and to a fresh DB) |
+| RabbitMQ topology + dead-letter routing | ✅ **verified 2026-09-27** against a real **RabbitMQ 4.3.6** on **Erlang/OTP 27.3.4** — see §5.1 and the Module 4 evidence below |
+| Interakt live send + live webhook | ❌ **never exercised** — no Interakt account credentials in this environment. The wire contract is pinned by fixtures from Interakt's published docs; see `INTEGRATIONS.md` §5 for exactly what is and is not verified |
 | `scripts/backup-postgres.sh` dump + integrity + restore | ✅ **verified** locally (see `DISASTER_RECOVERY.md` drill log) |
 | **SigV4 upload against a live S3-compatible store** | ✅ **verified 2026-09-26** against a **local MinIO server** (`minio/minio`, `RELEASE.2025-09-07`), *not* production S3. Both auth modes exercised end-to-end: the presigned-URL path (`SignedUploadUrlService`, used by Module 1 document uploads) and the header-signed path (backup script). Round-tripped a real `pg_dump` through the bucket and restored it with matching row counts. |
 | Production S3/R2/OSS credentials and bucket | ❌ **never exercised** — no cloud credentials in this environment. The signing logic is proven; the production endpoint/region/credential values are not. |
@@ -59,6 +61,43 @@ Do not report the ❌ rows as done.
 > the same wrong constant, so the defect cancelled out internally and no unit
 > test could see it. A signature that matches a published reference vector proves
 > the *math*; only a live request proves the *request*.
+
+### Module 4 live verification (2026-09-27)
+
+Broker behaviour was exercised against a real RabbitMQ 4.3.6 (AMQP listener on
+`127.0.0.1:5672`), not a mock, by `WhatsAppBrokerIT`. Backend suite: **256 tests
+green**.
+
+| Behaviour | Live result |
+|---|---|
+| App start in `BROKER` mode | exchange `securetravels.communication` (direct, durable), queue `securetravels.whatsapp.dispatch` with **1 consumer**, and `…dispatch.dlq` all declared |
+| Queued message | consumed off the broker and delivered; `attempts=1`, status `SENT`, dispatch queue drained to 0 |
+| Gateway always failing retryably | container retried to `maxAttempts` (row `attempts>=3`), then **rejected** — message appeared in the DLQ and the dispatch queue drained. This is the `defaultRequeueRejected=false` path working; without it the message would have looped forever and the DLQ would have stayed empty |
+| Unparseable queue payload (`not-a-uuid`) | landed in the DLQ rather than looping, so an operator can see and discard it |
+| Broker stopped, suite re-run | `WhatsAppBrokerIT` **skips itself** (4 skipped), so a machine without RabbitMQ still gets a green suite |
+
+> **Two real bugs were found by this work, both invisible to the unit tests and
+> both fatal in `BROKER` mode only:**
+>
+> 1. `@RabbitListener(queues = "#{@appProperties.messaging.queue}")` — a
+>    `@ConfigurationProperties` class has no contractual bean name, so the SpEL
+>    reference failed to resolve and the **entire application context refused to
+>    start**. Changed to `"${app.messaging.queue}"`. Unit tests never load a
+>    `BROKER`-mode context, so nothing could have caught it.
+> 2. `WhatsAppDispatchService.enqueue` routed delivery *inside* its own
+>    transaction. A consumer could claim the row before commit, see zero rows,
+>    conclude the message was already handled, and ack it — **silent message
+>    loss** with the row stuck in `QUEUED`, invisible to both the queue and the
+>    recovery sweep. Fixed by publishing `WhatsAppQueuedEvent` and routing
+>    `AFTER_COMMIT`.
+>
+> A third, sharper version of the same class of bug: a `@Transactional` method
+> called from inside an `AFTER_COMMIT` listener silently **joins the already
+> completed transaction** and fails with `TransactionRequiredException: no
+> transaction is in progress`. Both `enqueue` and the sender's claim/record
+> boundaries are now explicitly `REQUIRES_NEW`. Lesson: in a post-commit
+> callback, every transaction boundary you declare must be independent — a
+> default `REQUIRED` is a latent failure, not a no-op.
 
 ### Module 3 live verification (2026-09-26)
 
@@ -211,6 +250,65 @@ sudo -u securetravels editor /opt/securetravels/.env
 | `STORAGE_ENDPOINT` / `STORAGE_REGION` / `STORAGE_BUCKET` | documents bucket |
 | `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | documents bucket credentials |
 | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` | **first boot only**, then `unset`/remove — see `DEPLOYMENT.md` §5 |
+| `INTERAKT_API_KEY` | Module 4. The dashboard key, pasted **verbatim** — it is already `base64(accessToken + ":")`. Rebuilding it from parts is the documented mistake. Required only when `MESSAGING_WHATSAPP_MODE=INTERAKT` |
+| `INTERAKT_WEBHOOK_SECRET` | Module 4. Independent of `WEBHOOK_SECRET`: `openssl rand -base64 48`. Must match the value configured in the Interakt dashboard |
+| `MESSAGING_MODE` | Module 4. `INLINE` (default, no broker) or `BROKER` (needs RabbitMQ, see §5.1) |
+| `MESSAGING_WHATSAPP_MODE` | Module 4. `SANDBOX` (default — sends are logged, nothing leaves the box) or `INTERAKT` |
+
+### 5.1 RabbitMQ (only if `MESSAGING_MODE=BROKER`)
+
+**The broker is optional by design.** `INLINE` is fully supported, needs no
+broker, and is the default. Turn the broker on only when outbound volume or a
+stricter delivery guarantee justifies the extra always-on dependency (ADR 0005).
+
+```bash
+sudo apt-get install -y rabbitmq-server
+sudo systemctl enable --now rabbitmq-server
+sudo rabbitmqctl status          # expect RabbitMQ version + an AMQP listener on 5672
+```
+
+> **Erlang version pin — a real, reproduced failure.** RabbitMQ 4.3.x crashes
+> on boot with Erlang/OTP 29:
+> `incompatible_feature_flags ... beam_disasm ... {horus,do_disassemble_and_cache,4}`
+> and `Kernel pid terminated (application_controller)`. The crash is in the
+> OTP 28+ JIT (`horus`), not in RabbitMQ's own code, and no amount of RabbitMQ
+> configuration fixes it. Use **Erlang/OTP 27.x** (verified: RabbitMQ 4.3.6 on
+> OTP 27.3.4 boots clean). Check with `erl -noshell -eval 'io:format("~s~n",[erlang:system_info(otp_release)]), halt().'`
+> before blaming RabbitMQ.
+
+Create the user the app authenticates as, and grant only what it needs:
+
+```bash
+sudo rabbitmqctl add_user securetravels "$(openssl rand -base64 32)"
+sudo rabbitmqctl set_permissions -p / securetravels '^securetravels\.' '^securetravels\.' '^securetravels\.'
+# Only if the management UI is wanted, bound to localhost and fronted by nginx:
+sudo rabbitmq-plugins enable rabbitmq_management
+```
+
+Point the app at it (`SPRING_RABBITMQ_HOST`, `_PORT`, `_USERNAME`,
+`_PASSWORD`) and verify the topology is declared, not silently missing:
+
+```bash
+sudo rabbitmqctl list_exchanges name type durable | grep securetravels
+sudo rabbitmqctl list_queues name durable messages consumers | grep securetravels
+```
+
+Expected: one direct exchange `securetravels.communication`, and queues
+`securetravels.whatsapp.dispatch` (1 consumer) plus
+`securetravels.whatsapp.dispatch.dlq`.
+
+**Two failure modes to check in production, not just at build time:**
+
+- `securetravels.whatsapp.dispatch` showing **0 consumers** means the app
+  started without the listener. Its queue name comes from
+  `app.messaging.queue`; a mismatch between the app property and the declared
+  queue means publishes succeed into a queue nobody reads.
+- A **non-empty DLQ** means messages exhausted their retry budget. Each is one
+  customer who was promised contact and did not get it. Triage procedure:
+  `rabbitmqctl list_queues name messages` → for each id, look up the row in
+  `whatsapp_messages` (the payload *is* the message UUID) → read `last_error`,
+  fix the cause, then re-publish that id to `securetravels.communication` with
+  routing key `whatsapp.dispatch` to replay it. Never blind-purge the DLQ.
 
 Confirm demo data is off and nothing leaks:
 

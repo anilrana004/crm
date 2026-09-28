@@ -12,6 +12,7 @@ import com.securetravels.crm.common.exception.ConflictException;
 import com.securetravels.crm.common.exception.ForbiddenException;
 import com.securetravels.crm.common.exception.NotFoundException;
 import com.securetravels.crm.common.util.XssSanitizer;
+import com.securetravels.crm.commission.CommissionLedgerService;
 import com.securetravels.crm.customer.Customer360;
 import com.securetravels.crm.customer.Customer360Repository;
 import com.securetravels.crm.customer.Customer360Service;
@@ -81,13 +82,17 @@ public class BookingService {
     private final Customer360Service customerService;
     private final DiscountPolicy discountPolicy;
     private final CapacityAlertService capacityAlerts;
+    private final CommissionLedgerService commissionLedger;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     public BookingService(BookingRepository bookings, TravellerRepository travellers,
                           SeatHoldRepository seatHolds, BatchRepository batches, TripRepository trips,
                           Customer360Repository customers, LeadRepository leads, UserRepository users,
                           AuditService auditService, LeadService leadService, PaymentService paymentService,
                           OperationsService operationsService, Customer360Service customerService,
-                          DiscountPolicy discountPolicy, CapacityAlertService capacityAlerts) {
+                          DiscountPolicy discountPolicy, CapacityAlertService capacityAlerts,
+                          CommissionLedgerService commissionLedger,
+                      org.springframework.context.ApplicationEventPublisher events) {
         this.bookings = bookings;
         this.travellers = travellers;
         this.seatHolds = seatHolds;
@@ -103,6 +108,8 @@ public class BookingService {
         this.customerService = customerService;
         this.discountPolicy = discountPolicy;
         this.capacityAlerts = capacityAlerts;
+        this.commissionLedger = commissionLedger;
+        this.events = events;
     }
 
     @Transactional
@@ -233,16 +240,47 @@ public class BookingService {
             auditService.record("BOOKING", booking.getId(), AuditAction.UPDATE, "note", null, XssSanitizer.text(note.trim()));
         }
         if (booking.getLeadId() != null) {
-            leads.findById(booking.getLeadId()).ifPresent(lead -> {
+            Lead lead = leads.findById(booking.getLeadId()).orElse(null);
+            if (lead != null) {
                 if (lead.getStatus() == Lead.Status.QUOTATION_SENT) {
                     leadService.updateStatus(lead.getId(),
                             new LeadStatusRequest(Lead.Status.BOOKING_CONFIRMED, null,
                                     note == null ? null : XssSanitizer.text(note.trim())), caller);
                 }
-            });
+                // Snapshot revenue attribution to the lead's owner while the booking
+                // is confirmed, in the same transaction. Deriving it later from
+                // leads.owner_id would let a later reassignment rewrite this
+                // booking's history; see V13 for the full argument.
+                commissionLedger.credit(booking, lead, Instant.now());
+            }
         }
         operationsService.onBookingConfirmed(booking, caller);
         customerService.maintainAggregates(booking.getCustomerId());
+        publishBookingConfirmed(booking);
+    }
+
+    /**
+     * Queue the customer's confirmation message (Module 4).
+     *
+     * <p>Everything is resolved here, inside the transaction, and published as a
+     * single event. The actual send happens in an AFTER_COMMIT listener, so a
+     * rollback cannot produce a "you are booked" message for a booking that does
+     * not exist, and a WhatsApp failure cannot fail the confirmation.
+     */
+    private void publishBookingConfirmed(Booking booking) {
+        customers.findById(booking.getCustomerId()).ifPresent(customer -> {
+            String mobile = customer.getWhatsappNumber() != null && !customer.getWhatsappNumber().isBlank()
+                    ? customer.getWhatsappNumber() : customer.getMobileNumber();
+            if (mobile == null || mobile.isBlank()) {
+                return;   // no reachable number; nothing to send and nobody to ask
+            }
+            String packageName = trips.findById(booking.getTripId())
+                    .map(trip -> trip.getName())
+                    .orElse("your trip");
+            events.publishEvent(new BookingConfirmedEvent(
+                    booking.getId(), customer.getId(), booking.getBookingRef(),
+                    customer.getFullName(), mobile, packageName, booking.getTravelDate()));
+        });
     }
 
     private void confirmHold(Booking booking) {
@@ -284,6 +322,15 @@ public class BookingService {
                                     "Booking " + booking.getBookingRef() + " cancelled; lead reopened"), caller);
                 }
             });
+        }
+
+        // Withdraw, never delete. A commission dispute is settled by showing when
+        // the credit appeared and when it was withdrawn, so the trail has to
+        // outlive the reversal. Only a CONFIRMED booking was ever credited, so
+        // this is a no-op for the rest.
+        if (oldStatus.equals(Booking.Status.CONFIRMED.name())) {
+            commissionLedger.revoke(booking.getId(),
+                    "Booking " + booking.getBookingRef() + " cancelled");
         }
     }
 

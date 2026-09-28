@@ -1,0 +1,18 @@
+# Grafana datasource provisioning (Phase 3 Module 5).
+#
+# Provisioning rather than a saved datasource: a `docker compose up` produces a
+# working dashboard with no manual "add Prometheus" step, which is the difference
+# between monitoring that exists and monitoring that gets set up.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: securetravels-prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s

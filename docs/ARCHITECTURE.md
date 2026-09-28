@@ -61,7 +61,7 @@ its original scaffold names; the mapping is exact and intentional:
 | `tasks` | `task` |
 | `audit` | `common.audit` (shared service) |
 | `documents` | `document` (entity only; workflows Phase 2) |
-| `reporting` | `dashboard` (Phase-1 subset) |
+| `reporting` | `dashboard` (Phase-1 subset), `analytics` + `commission` (Phase 3 Module 2) |
 | `notifications` | `notification` (supporting module; canonical home is `communications`) |
 
 Rename-to-canonical is a **refactor only**, to be executed when a module
@@ -77,7 +77,9 @@ boundary is reserved *now* and nobody invents a parallel structure later:
 - `communications/` — Phase 5
 - `marketing/` — Phase 5
 - `finance/` — Phase 9
-- `reporting/` — Phase 10/11
+- `reporting/` — Phase 10/11. **Still reserved.** Phase 3 Module 2 (Reporting
+  suite) ships in `analytics/` + `commission/`, not here; the canonical name
+  stays reserved for the cross-module BI layer.
 - `vendors/` — Phase 2
 - `document/`-level workflows — Phase 2 (entity present since Phase 1)
 
@@ -107,9 +109,117 @@ that is the shared *infrastructure* package, not a feature module.
 | API contract | springdoc-openapi → `/v3/api-docs` → openapi-typescript typed client | see `API_STANDARDS.md` |
 | Rate limiting | Bucket4j in-memory per instance | Phase 2 → Redis shared |
 | Async | Spring `@Async` for fire-and-forget | NO broker until Phase 6 (ADR 0003) |
-| Search (future) | OpenSearch in Phase 3 | — |
-| Observability (future) | Prometheus + Grafana in Phase 3 | actuator now |
+| Search | **PostgreSQL full-text (`tsvector` + GIN + `pg_trgm`)** | OpenSearch **deferred 2026-09-27** — measured, not assumed. **Implemented 2026-09-28 in `V13`. See §4.1** |
+| Observability | Prometheus + Grafana + alert rules (Phase 3) | **implemented 2026-09-28** - `docs/OBSERVABILITY.md` |
+| Log aggregation | host-retained structured logs | ELK **deferred 2026-09-28** - see 4.2 |
 | Objects/files | S3-compatible bucket, presigned URLs (documents, Phase 2) | no file bytes in Postgres |
+
+### 4.1 OpenSearch: deferred, with the measurement (2026-09-27)
+
+Phase 3 originally specified "OpenSearch for full-text search across Leads,
+Customers, Bookings **once Postgres tsvector search genuinely becomes
+insufficient at current data volume**", with an explicit instruction to confirm
+that condition before standing up a cluster. It was measured rather than assumed,
+and the condition **is not met.**
+
+Current production-shape volume in `securetravels_crm`:
+
+| Table | Rows |
+|---|---|
+| `leads` | 30 |
+| `bookings` | 16 |
+| `customer360` | 16 |
+| `travellers` | 59 |
+| `trips` | 15 |
+
+There is additionally **no full-text search implemented at all** — 0 `tsvector`
+columns, 0 GIN indexes, 0 trigram indexes in the schema. The gap is not "Postgres
+is too slow", it is "search has not been built".
+
+Measured latency (`EXPLAIN ANALYZE`, local PostgreSQL 16):
+
+| Query | Rows scanned | Execution time |
+|---|---|---|
+| Cross-entity customer search (`ILIKE` across `full_name`/`email`/`mobile_number`) | 16 | **0.040 ms** |
+| Funnel-style aggregate, 3-table join + `GROUP BY source` | 30 + 16 + 16 | **0.093 ms** |
+
+To find where Postgres would *actually* become the bottleneck, 100,000 synthetic
+rows (≈3,300× current lead volume) were loaded and the same query shapes timed:
+
+| Strategy at 100k rows | Execution time |
+|---|---|
+| Naive `ILIKE` (seq scan, worst case) | 42.8 ms |
+| Btree on `lower(name)` + `ILIKE` | 35.1 ms |
+| **`tsvector` + GIN** (correct Postgres FTS) | **0.76 ms** cold, **0.68 ms** warm |
+| **`tsvector` + GIN**, ranked `ORDER BY ts_rank ... LIMIT 20` | **0.72 ms** |
+
+**Conclusion: defer OpenSearch.** A GIN-indexed `tsvector` search answers
+sub-millisecond at 100k rows — roughly three orders of magnitude more headroom
+than the 136 rows the system actually holds today. Standing up a second search
+cluster (and an ELK pipeline behind it) would add operational surface, a JVM/heap
+tuning burden, index-sync correctness problems and a consistency model
+(still-async reindex) in exchange for latency the current data volume does not
+need. The premise for the cluster does not exist.
+
+**What Phase 3 should build instead:** proper Postgres FTS — generated `tsvector`
+columns over the searchable `customer360` / `leads` / `bookings` text, GIN
+indexes, `ts_rank` ordering, `pg_trgm` for fuzzy/typo-tolerant match. That is a
+migration, not a cluster.
+
+> **As-built (2026-09-28): shipped.** `V13__reporting_commission_ledger_and_fts.sql`
+> adds generated `search_vector` columns (raw `to_tsvector` + a second
+> `regexp_replace`-stripped vector so partial-email and exact-phrase searches both
+> match), GIN indexes, and `pg_trgm` with `similarity()`:
+>
+> - `customer360`: `full_name_search`, `email_search` (+ trigram on `mobile_number`)
+> - `leads`: `contact_search` (name + email + mobile), `owner_id`, indexed `travel_date`
+> - `bookings`: `reference_search` (ref + customer + trip name), `travel_date`
+>
+> The audit-log search (`/api/analytics/audit`) ranks by
+> `ts_rank(raw_vector, websearch_to_tsquery(q)) + similarity()` and labels each
+> hit `matchedBy` (`FTS` / `TRIGRAM` / both). Functional cost measured: a chess
+> game's worth of rows, sub-millisecond. The "0 tsvector columns" paragraphs
+> above are superseded; the decision-discipline they record still stands.
+
+**Revisit OpenSearch only when one of these is true** (any one is sufficient):
+
+1. Searchable rows exceed ~1,000,000, or GIN p99 latency exceeds ~100 ms.
+2. A requirement appears that Postgres FTS genuinely cannot serve: cross-entity
+   faceted navigation with dynamic aggregations at scale, typo-tolerant
+   re-ranking tuned beyond `pg_trgm`, per-field analyzers with language-specific
+   stemming/stopwords, or relevance tuned by ML rather than `ts_rank`.
+3. Log aggregation is required — but that decision stands on its own merits
+   (see the observability note) and still does not by itself justify *this*
+   cluster.
+
+Re-measure with the same queries before reopening this; do not adopt OpenSearch
+on enthusiasm.
+
+### 4.2 Log aggregation: deferred, with the same discipline (2026-09-28)
+
+The Phase 3 brief also mentioned ELK-style log aggregation. **Not adopted**, on
+the same reasoning as 4.1: an operational cluster is a standing cost and a
+standing failure surface, and the requirement it would serve — "find the log
+line behind this request" — is already served for the cases that matter.
+
+What exists instead:
+
+- **Metrics** for anything that is a rate, a latency, a depth or a count:
+  Prometheus + Grafana (`docs/OBSERVABILITY.md`). These are cheap, bounded, and
+  queryable, and they are what alerting should be built on.
+- **Structured application logs** retained on the host, which is sufficient to
+  diagnose a single bad request. Log aggregation becomes worthwhile when the
+  question is no longer about one request.
+
+**Revisit when** any of these is true: logs must be retained beyond the host's
+disk; more than one application instance makes local log access impractical;
+there is a compliance requirement to keep an immutable copy; or an on-call
+rotation needs to search logs across instances. At that point Loki or
+OpenSearch — not necessarily ELK, which is the heaviest of the options — is
+justified.
+
+This is a deferral, not a rejection. Re-measure log volume and retention
+requirements before reopening it, exactly as 4.1 requires.
 
 ## 5. Layering inside a module (vertical slice)
 

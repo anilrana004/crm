@@ -1,7 +1,16 @@
 # ADR 0003 — No message broker until Phase 6
 
-- **Status:** Accepted · Ratified (Phase 1 Prompt 3)
-- **Date:** 2026-09
+> **SUPERSEDED (2026-09-27) by [ADR 0005](0005-rabbitmq-for-phase-2-communication-delivery.md).**
+>
+> The hard gate set in the Phase 1 closeout below was re-verified at the Phase 2
+> kickoff, as that gate required. It opened: Module 4's customer-facing WhatsApp
+> delivery meets revisit trigger #3 (a genuine at-least-once requirement across
+> process failure) and #1 (a second consumer that cannot accept the synchronous
+> path). **Kafka remains deferred to Phase 6** and Redis Streams remains
+> rejected. This file is kept for history — do not follow the decision below.
+>
+> - **Status:** ~~Accepted · Ratified (Phase 1 Prompt 3)~~ — **Superseded by ADR 0005**
+> - **Date:** 2026-09 (superseded 2026-09-27)
 
 ## Context
 

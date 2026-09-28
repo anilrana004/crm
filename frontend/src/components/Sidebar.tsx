@@ -13,6 +13,7 @@ const NAV = [
   { href: "/operations", label: "Operations" },
   { href: "/customers", label: "Customers" },
   { href: "/trips", label: "Trips & Batches" },
+  { href: "/reports", label: "Reports" },
   { href: "/login", label: "Login" },
 ];
 
@@ -24,7 +25,7 @@ export function Sidebar() {
     <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="border-b border-slate-200 px-5 py-4">
         <div className="text-sm font-semibold text-slate-900">SecureTravels</div>
-        <div className="text-xs text-slate-400">CRM · Phase 1</div>
+        <div className="text-xs text-slate-400">CRM · Phase 3</div>
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {NAV.filter((n) => n.href !== "/login").map((item) => (

@@ -1,0 +1,41 @@
+# Prometheus scrape + evaluation configuration (Phase 3 Module 5).
+#
+# Metric names below are not guesses: every expression in alerts.yml refers to a
+# series that was captured from a real scrape of this application
+# (backend/target/prom-live.txt) and asserted in PrometheusEndpointIT.
+#
+# Run with:  docker compose --profile monitoring up -d prometheus grafana
+
+global:
+  # 15s matches the default; it is the interval the DB-pool and latency panels
+  # assume. Raising it makes `rate()` windows coarser, not less accurate.
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    app: securetravels
+    env: ${ENV:-dev}
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # The application. Inside the compose network it is reachable as `backend`.
+  - job_name: securetravels-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:8080"]
+        labels:
+          service: securetravels-backend
+    # Scrape only what is needed. Dropping the rest keeps a noisy JVM from
+    # filling the local TSDB on a developer laptop.
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "jvm_buffer_.*|jvm_gc_.*|tomcat_.*"
+        action: drop
+
+  # Prometheus itself, so "is my monitoring up" is answerable by the same
+  # monitoring. Without this, a dead Prometheus is silent.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

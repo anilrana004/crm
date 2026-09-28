@@ -3,7 +3,8 @@
 > **Single source of truth: `backend/src/main/resources/db/migration/`** —
 > Flyway applies schema, `ddl-auto: validate` prevents drift. This document
 > is a living map and must be updated in the same change as any new
-> migration. Migrations shipped: **V1 → V6** (Phase 1).
+> migration. Migrations shipped: **V1 → V13** (V1–V12 Phase 1–2; V12 = Module 4
+> WhatsApp + timeline; **V13 = Phase 3 Module 2** reporting ledger + search).
 
 Conventions used throughout:
 
@@ -266,7 +267,121 @@ Conventions used throughout:
 
 ---
 
-## 11. Module 9 — webhook automation
+## 11. Communications — Module 4 (`V12__whatsapp_communication_timeline.sql`)
+
+### `whatsapp_templates` (reference data, seeded by V12)
+The nine approved templates. Reference data, not configuration churn: Interakt
+has no template-management API, so the Interakt side is created in the dashboard
+and this table mirrors it.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | bigserial | |
+| code | varchar(40) unique | internal key, e.g. `BOOKING_CONFIRMED` |
+| interakt_name | varchar(80) unique | the **dashboard** name, e.g. `securetravels_booking_confirmed` |
+| label / language_code | varchar | `languageCode` is always `en` today |
+| expected_params | int | positional `bodyValues` count; enforced in `enqueue` so a caller bug is a 400, not a wasted provider quota |
+| enabled | boolean | operational toggle; a disabled template is a permanent failure, never a retry |
+
+`TRIP_LOGISTICS` deliberately merges hotel, driver, and pickup, which is what
+brings the catalogue to nine distinct templates.
+
+### `whatsapp_messages` (one row per outbound message)
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | also the queue payload in `BROKER` mode |
+| subject_type / subject_id | varchar(20) / uuid | polymorphic `LEAD, CUSTOMER, BOOKING`; **no FK** — the owning module owns the row |
+| template_code | varchar(40) | logical reference to `whatsapp_templates` |
+| recipient_mobile | varchar(20) | normalised digits; correlated to inbound replies by this |
+| country_code | varchar(6) | quoted (`"+91"`); the documented Interakt trap |
+| body_values | text[] | positional `{{1}}..{{n}}` values |
+| status | varchar(16) | `QUEUED, SENDING, SENT, DELIVERED, READ, FAILED, DEAD_LETTERED` |
+| attempts | int | advanced by the same `UPDATE` that claims the row, so the two cannot drift |
+| provider / provider_message_id | varchar | |
+| callback_data | varchar(64) unique | `st-<uuid>`; **unique** makes a replayed send a constraint violation rather than a second message |
+| queued_at / sent_at / delivered_at / read_at | timestamptz | |
+| last_error / channel_error_code / channel_failure_reason | varchar | Interakt's error code is a *string* (e.g. `1013`) |
+| created_at / updated_at | timestamptz | |
+
+Indexes: partial on `(status, queued_at)` for the `SENDING` recovery sweep, and
+a unique `callback_data` for idempotency.
+
+### `timeline_events` (unified Lead/Customer/Booking timeline)
+| Field | Type | Notes |
+|---|---|---|
+| id / seq | uuid / bigserial | `seq` breaks ties within one timestamp |
+| subject_type / subject_id | varchar(20) / uuid | polymorphic, no FK |
+| direction | varchar(10) | `INBOUND, OUTBOUND` |
+| channel | varchar(20) | `WHATSAPP` (future: `EMAIL, SYSTEM`) |
+| kind | varchar(30) | `TEMPLATE_QUEUED, TEMPLATE_SENT, TEMPLATE_DELIVERED, TEMPLATE_READ, TEMPLATE_FAILED, REPLY_RECEIVED, MEDIA_RECEIVED, BUTTON_CLICKED, SYSTEM_NOTE` |
+| template_code / summary / body | | `body` is inbound customer text; never store it in a log line |
+| provider / provider_message_id / actor_mobile | | correlation |
+| body_values | jsonb | what was actually sent, for audit |
+| created_at | timestamptz | |
+
+**Unique `(provider, provider_message_id, kind)`** is the backstop that makes
+re-delivered webhooks harmless. The service also checks for existence first, so
+a duplicate becomes a no-op rather than a 500 that provokes another retry.
+
+Deliberately **separate from `audit_log`**: audit answers "who changed what",
+the timeline answers "what did this customer receive and say". Conflating them
+produces a log nobody can read.
+
+---
+
+## 12. Reporting — Phase 3 Module 2 (`V13__reporting_commission_ledger_and_fts.sql`)
+
+### `sales_commission_ledger` (credited revenue snapshot)
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid | |
+| booking_id | uuid **unique** | one credit per booking — `ON CONFLICT DO NOTHING` makes re-credit harmless |
+| lead_id / customer_id (FK) | | customer from `bookings.customer_id`; lead via `bookings.lead_id` |
+| consultant_id (FK users) | | **owner at confirmation**, snapshotted — `leads.owner_id` is mutable |
+| trip_id / batch_id (FK) | | for trip-level attribution |
+| source | varchar(30) | `Web, Referral, Walk-in, ...` (string, not a lookup) |
+| gross_amount / discount_amount / net_amount | numeric(12,2) | `net_amount` ties to `bookings` (IT-verified) |
+| base_cost_assumed | numeric(12,2) | derived; see Phase 9 for true P&L |
+| effective_net_amount | numeric(12,2) | source of the report's "net booked value" |
+| credited_at | timestamptz | confirmed-at time |
+| revoked_at / revoked_by (FK users) | timestamptz / uuid **null** | **revoke never deletes**; cancelled booking keeps its row |
+| version | bigint | |
+
+One row per confirmed booking. `revoked_at` set on cancellation. Direct DML
+never changes it — only `CommissionLedgerService` writes.
+
+### FTS search vectors
+Generated `tsvector` columns over **raw + `regexp_replace`-stripped** text
+(single vectors lose partial-email matches, e.g. `Ramesh.New@x.com` becomes one
+lexeme):
+
+| Table | Column | Contents |
+|---|---|---|
+| `customer360` | `full_name_search` / `email_search` | name; email |
+| `customer360` | trigram on `mobile_number` | typo-tolerant number search |
+| `leads` | `contact_search` | name + email + mobile |
+| `bookings` | `reference_search` | ref + customer name + trip name |
+
+GIN indexes on each vector; `pg_trgm` GIN on mobile. Audit search ranks by
+`ts_rank` + `similarity()` and reports `matchedBy`.
+
+### Indexes added
+`idx_bookings_travel_date`, `idx_leads_travel_date`, `idx_leads_owner_created`,
+`idx_batches_departure_date`, `idx_customer360_created_at`,
+`idx_operations_handoffs_departure`. (`idx_bookings_travel_date` etc. were
+verified against the live schema as genuinely missing before being created —
+duplicate/prefix-covered indexes were **not** re-added.)
+
+### Backfill (ratified)
+Two eligible bookings were credited to their *current* `leads.owner_id` with
+`credited_at = bookings.updated_at`. This is documented as **lossy**: the owner
+at confirmation was never recorded before Module 2, so historical attribution is
+"as of today" by stated policy. `ON CONFLICT (booking_id) DO NOTHING` guards the
+rerun.
+
+---
+
+## 13. Module 9 — webhook automation
 
 ### `assignment_state` (round-robin sales-assignment cursor)
 | Field | Type | Notes |
@@ -288,7 +403,7 @@ Conventions used throughout:
 
 ---
 
-## 12. Relationship map
+## 14. Relationship map
 
 ```
 users 1─* refresh_tokens
@@ -309,15 +424,21 @@ customer360 1─* bookings        customer360 1─* travellers
 bookings 1─* travellers         bookings 1─* payments
 bookings 1─1 operations_handoffs
 bookings 1─* tasks.booking_id   bookings 1─* documents.booking_id
+bookings 1─0..1 sales_commission_ledger.booking_id   (revocable credit)
+
+sales_commission_ledger *─1 users.consultant_id   sales_commission_ledger *─1 leads.lead_id
+
+whatsapp_templates 1─0..1 whatsapp_messages  (logical ref on template_code, no FK)
+whatsapp_messages  1─0..* timeline_events     (same subject_type/subject_id, no FK)
 ```
 
-## 13. Booking-type decision
+## 15. Booking-type decision
 
 FIXED_BATCH vs CUSTOM_FIT is the **foundational schema decision** of the
 Phase-1 build (it shapes `trips`, `batches`, `seat_holds`, `bookings`, and
 the I1/I2/I3 invariants). Full rationale: **ADR `0001-booking-type-model`**.
 
-## 14. Change discipline
+## 16. Change discipline
 
 - Every new table/column ships as a new `V{n}__*.sql` in order — **never
   auto-DDL** (`ddl-auto: validate` enforces this).

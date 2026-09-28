@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -49,6 +50,32 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> onUnreadable(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest().body(
                 new ApiError(HttpStatus.BAD_REQUEST.value(), "MALFORMED_BODY", "Request body is malformed"));
+    }
+
+    /**
+     * A query parameter that cannot be converted to its declared type: a bad UUID,
+     * a bad date, or an enum name that does not exist.
+     *
+     * <p>This was unhandled, so bad input reached the catch-all and returned 500.
+     * That is wrong twice over: the status misdescribes a caller mistake as a
+     * server fault, and it makes every endpoint with a typed query parameter look
+     * fragile to a client that fuzzes its inputs. {@code ?season=SUMMER} is a
+     * caller error and now says so.
+     *
+     * <p>Only the parameter NAME is echoed back. The rejected value itself is not,
+     * so a malformed parameter cannot be used to reflect content into the error
+     * body.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> onTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String name = ex.getName();
+        String expected = ex.getRequiredType() == null ? "the expected type" : ex.getRequiredType().getSimpleName();
+        return ResponseEntity.badRequest().body(new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                "INVALID_PARAMETER",
+                "Parameter '" + name + "' is not a valid " + expected,
+                List.of(new ApiError.FieldError(name,
+                        "expected a value of type " + expected))));
     }
 
     @ExceptionHandler(BadRequestException.class)

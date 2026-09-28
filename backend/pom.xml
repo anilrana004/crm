@@ -30,6 +30,8 @@
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <log4j2.version>2.25.5</log4j2.version>
         <postgresql.version>42.7.12</postgresql.version>
+        <rabbit-amqp-client.version>5.36.0</rabbit-amqp-client.version>
+        <netty.version>4.1.137.Final</netty.version>
     </properties>
 
     <dependencies>
@@ -51,7 +53,22 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!--
+      Prometheus scrape format. Without a registry on the classpath the
+      /actuator/prometheus endpoint does not exist at all, and Boot only
+      auto-instruments JVM / Hikari / HTTP metrics when a registry is present
+      to receive them.
+    -->
+    <dependency>
+        <groupId>io.micrometer</groupId>
+        <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
         <dependency>

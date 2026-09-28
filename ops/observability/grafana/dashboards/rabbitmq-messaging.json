@@ -1,0 +1,167 @@
+{
+  "uid": "st-rabbitmq",
+  "title": "SecureTravels - RabbitMQ Messaging",
+  "description": "Dispatch queue depth, dead-letter depth and the freshness of the depth reading. Covers the 'growing dead-letter queue pages someone' requirement of Phase 3 Module 5.",
+  "tags": ["securetravels", "rabbitmq"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Dead-letter depth",
+      "description": "Anything other than 0 means a customer-facing notification exhausted its retry budget and will not be retried on its own.",
+      "datasource": { "type": "prometheus", "uid": "securetravels-prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "securetravels_rabbitmq_queue_depth{queue=\"securetravels.whatsapp.dispatch.dlq\"}",
+          "legendFormat": "DLQ"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Dispatch queue depth",
+      "datasource": { "type": "prometheus", "uid": "securetravels-prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "securetravels_rabbitmq_queue_depth{queue=\"securetravels.whatsapp.dispatch\"}",
+          "legendFormat": "dispatch"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 10 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Depth reading fresh?",
+      "description": "0 means the depth shown elsewhere on this dashboard is a retained last-known value, not a current one. Check app.messaging.mode before treating it as a fault.",
+      "datasource": { "type": "prometheus", "uid": "securetravels-prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "securetravels_rabbitmq_queue_metrics_up",
+          "legendFormat": "up"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "STALE", "color": "red", "index": 0 }, "1": { "text": "fresh", "color": "green", "index": 1 } } }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Active consumers",
+      "description": "The dispatch listener is single-threaded by design because the Interakt quota is per account. 0 on the dispatch queue means nothing is draining it.",
+      "datasource": { "type": "prometheus", "uid": "securetravels-prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "securetravels_rabbitmq_queue_consumers{queue=\"securetravels.whatsapp.dispatch\"}",
+          "legendFormat": "consumers"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "min": 0 }, "overrides": [] },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Queue depth over time",
+      "description": "A dispatch queue that rises and never falls is the backlog condition the alert fires on.",
+      "datasource": { "type": "prometheus", "uid": "securetravels-prometheus" },
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "securetravels_rabbitmq_queue_depth",
+          "legendFormat": "{{queue}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "custom": { "lineWidth": 2, "fillOpacity": 15, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["max", "lastNotNull"] }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Staleness of the depth reading (seconds)",
+      "description": "A large plateau means the last number on this dashboard stopped being true at that point.",
+      "datasource": { "type": "prometheus", "uid": "securetravels-prometheus" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 6 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "clamp_max(securetravels_rabbitmq_queue_metrics_stale_seconds, 3600)",
+          "legendFormat": "age"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "max": 3600 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+    }
+  ]
+}
