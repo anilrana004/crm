@@ -4,6 +4,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Next.js may not have a public/ folder; ensure one exists for the runtime COPY
+RUN mkdir -p public
+# Rewrites are resolved at build time; inside Compose the API host is "backend".
+ARG NEXT_PUBLIC_API_BASE_URL=http://backend:8080/api
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN npm run typecheck && npm run build
 
 # ---- runtime ----

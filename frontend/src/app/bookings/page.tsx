@@ -5,9 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiClientError, type Booking, type PaymentSummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 import { BookingForm } from "@/components/booking/BookingForm";
-
 const MANAGER_ROLES = ["MANAGER", "ADMIN", "CEO"];
 const BOOKING_CAN_WRITE = ["SALES", "MANAGER", "ADMIN", "CEO"];
 
@@ -91,10 +90,8 @@ export default function BookingsPage() {
 
   return (
     <Protected>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
+      <AppShell mainClassName="p-4 sm:p-6">
+          <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold text-slate-900">Bookings</h1>
               <p className="text-sm text-slate-500">
@@ -104,7 +101,7 @@ export default function BookingsPage() {
             {canWrite && (
               <button
                 onClick={() => setShowForm(true)}
-                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 sm:w-auto"
               >
                 + New booking
               </button>
@@ -113,7 +110,7 @@ export default function BookingsPage() {
 
           {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-          <div className="grid grid-cols-[320px_1fr] items-start gap-6">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[320px_1fr]">
             <div className="space-y-2">
               {loading ? (
                 <p className="py-6 text-center text-sm text-slate-400">Loading bookings…</p>
@@ -228,26 +225,28 @@ export default function BookingsPage() {
                     {(selected.travellers?.length ?? 0) > 0 && (
                       <div className="mt-4">
                         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Travellers</h4>
-                        <table className="mt-2 w-full text-sm">
-                          <thead>
-                            <tr className="text-left text-xs text-slate-400">
-                              <th className="py-1 pr-2 font-medium">Name</th>
-                              <th className="py-1 pr-2 font-medium">Age</th>
-                              <th className="py-1 pr-2 font-medium">Gender</th>
-                              <th className="py-1 font-medium">Med cert</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selected.travellers?.map((t) => (
-                              <tr key={t.id} className="border-t border-slate-100">
-                                <td className="py-1.5 pr-2 font-medium text-slate-800">{t.fullName}</td>
-                                <td className="py-1.5 pr-2 text-slate-500">{t.age ?? "—"}</td>
-                                <td className="py-1.5 pr-2 text-slate-500">{t.gender ?? "—"}</td>
-                                <td className="py-1.5 text-slate-500">{t.medicalCertRequired ? "Yes" : "No"}</td>
+                        <div className="table-scroll overflow-x-auto">
+                          <table className="mt-2 w-full text-sm">
+                            <thead>
+                              <tr className="text-left text-xs text-slate-400">
+                                <th className="py-1 pr-2 font-medium">Name</th>
+                                <th className="py-1 pr-2 font-medium">Age</th>
+                                <th className="py-1 pr-2 font-medium">Gender</th>
+                                <th className="py-1 font-medium">Med cert</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {selected.travellers?.map((t) => (
+                                <tr key={t.id} className="border-t border-slate-100">
+                                  <td className="py-1.5 pr-2 font-medium text-slate-800">{t.fullName}</td>
+                                  <td className="py-1.5 pr-2 text-slate-500">{t.age ?? "—"}</td>
+                                  <td className="py-1.5 pr-2 text-slate-500">{t.gender ?? "—"}</td>
+                                  <td className="py-1.5 text-slate-500">{t.medicalCertRequired ? "Yes" : "No"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
 
@@ -256,7 +255,7 @@ export default function BookingsPage() {
                     )}
 
                     {selected && summary && (
-                      <div className="mt-4 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="mt-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="text-sm text-slate-600">
                           <span className="font-medium text-slate-800">Receivable</span>
                           {" · "}net {fmtMoney(summary.netAmount)}
@@ -267,13 +266,13 @@ export default function BookingsPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                           <span className="text-sm font-semibold text-slate-900">
                             Balance due {fmtMoney(summary.balanceAmount)}
                           </span>
                           <Link
                             href={`/payments?bookingId=${selected.id}`}
-                            className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                            className="rounded-md bg-slate-900 px-3 py-1.5 text-center text-xs font-semibold text-white hover:bg-slate-800"
                           >
                             Payments →
                           </Link>
@@ -328,8 +327,7 @@ export default function BookingsPage() {
               )}
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
 
       {showForm && (
         <BookingForm

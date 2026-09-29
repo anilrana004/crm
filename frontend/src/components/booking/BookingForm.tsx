@@ -147,8 +147,8 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
   const label = "block text-sm font-medium text-slate-700";
 
   return (
-    <div className="fixed inset-0 z-20 flex items-start justify-center bg-slate-900/50 p-6 pt-16 overflow-y-auto">
-      <form onSubmit={onSubmit} className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-20 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-3 pt-safe sm:p-6 sm:pt-16">
+      <form onSubmit={onSubmit} className="w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">New booking</h2>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700">
@@ -156,8 +156,8 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className={`${label} col-span-2`}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className={`${label} sm:col-span-2`}>
             Lead
             <select
               required
@@ -181,7 +181,7 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
             )}
           </label>
 
-          <label className={`${label} col-span-2`}>
+          <label className={`${label} sm:col-span-2`}>
             Trip
             <select
               required
@@ -198,7 +198,7 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
           </label>
 
           {isFixed && tripDetail ? (
-            <label className={`${label} col-span-2`}>
+            <label className={`${label} sm:col-span-2`}>
               Departure batch
               <select
                 required
@@ -220,7 +220,7 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
               )}
             </label>
           ) : (
-            <label className={`${label} col-span-2`}>
+            <label className={`${label} sm:col-span-2`}>
               Travel date
               <input
                 required
@@ -248,7 +248,7 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
             <input value={notes} onChange={(e) => setNotes(e.target.value)} className={input} />
           </label>
 
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-slate-700">Travellers ({rows.length})</h4>
               <button
@@ -261,7 +261,7 @@ export function BookingForm({ onSaved, onClose }: BookingFormProps) {
               </button>
             </div>
             {rows.map((r, i) => (
-              <div key={i} className="mt-2 grid grid-cols-[1fr_80px_90px_auto_auto] items-center gap-2">
+              <div key={i} className="mt-2 grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_80px_90px_auto_auto]">
                 <input
                   required
                   placeholder="Full name"

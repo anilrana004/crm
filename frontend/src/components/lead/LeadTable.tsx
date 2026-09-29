@@ -23,68 +23,158 @@ type LeadTableProps = {
   onOpen: (id: string) => void;
 };
 
+function LeadCard({
+  lead,
+  trip,
+  onStatusChange,
+  onOpen,
+}: {
+  lead: Lead;
+  trip?: Trip;
+  onStatusChange: (id: string, status: LeadStatusPayload) => void;
+  onOpen: (id: string) => void;
+}) {
+  const heat = lead.heat ?? "COLD";
+  const status = lead.status ?? "NEW";
+  return (
+    <div
+      className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4"
+      onClick={() => lead.id && onOpen(lead.id)}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-medium text-slate-900">{lead.customerName}</div>
+          <div className="mt-0.5 text-sm text-slate-600">{lead.mobileNumber}</div>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${HEAT_STYLE[heat] || ""}`}>
+          {heat}
+        </span>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+        <div>
+          <dt className="text-xs text-slate-400">Source</dt>
+          <dd className="text-slate-700">{lead.source}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-400">Trip</dt>
+          <dd className="truncate text-slate-700">{trip ? trip.name : lead.destination || "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-400">Travel</dt>
+          <dd className="text-slate-700">{lead.travelDate ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-400">Budget</dt>
+          <dd className="text-slate-700">
+            {lead.budget != null ? `₹${Number(lead.budget).toLocaleString("en-IN")}` : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-400">Owner</dt>
+          <dd className="text-slate-700">{lead.ownerName ?? "Unassigned"}</dd>
+        </div>
+        <div onClick={(e) => e.stopPropagation()}>
+          <dt className="text-xs text-slate-400">Status</dt>
+          <dd className="mt-0.5">
+            <select
+              value={status}
+              onChange={(e) =>
+                lead.id && onStatusChange(lead.id, { status: e.target.value as LeadStatusPayload["status"] })
+              }
+              className={`rounded-full border-0 px-2 py-1 text-xs font-semibold outline-none ${STATUS_STYLE[status] || ""}`}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
 export function LeadTable({ leads, tripsById, onStatusChange, onOpen }: LeadTableProps) {
   if (leads.length === 0) {
     return <p className="py-10 text-center text-sm text-slate-400">No leads match the current filters.</p>;
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="px-4 py-3">Customer</th>
-            <th className="px-4 py-3">Mobile</th>
-            <th className="px-4 py-3">Source</th>
-            <th className="px-4 py-3">Trip</th>
-            <th className="px-4 py-3">Heat</th>
-            <th className="px-4 py-3">Travel</th>
-            <th className="px-4 py-3">Budget</th>
-            <th className="px-4 py-3">Owner</th>
-            <th className="px-4 py-3">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {leads.map((lead) => {
-            const heat = lead.heat ?? "COLD";
-            const status = lead.status ?? "NEW";
-            const trip = lead.tripId ? tripsById.get(lead.tripId) : undefined;
-            return (
-            <tr key={lead.id} className="cursor-pointer hover:bg-slate-50" onClick={() => lead.id && onOpen(lead.id)}>
-              <td className="px-4 py-3 font-medium text-slate-900">{lead.customerName}</td>
-              <td className="px-4 py-3 text-slate-600">{lead.mobileNumber}</td>
-              <td className="px-4 py-3 text-slate-600">{lead.source}</td>
-              <td className="px-4 py-3 text-slate-600">{trip ? trip.name : lead.destination || "—"}</td>
-              <td className="px-4 py-3">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${HEAT_STYLE[heat] || ""}`}>
-                  {heat}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-slate-600">{lead.travelDate ?? "—"}</td>
-              <td className="px-4 py-3 text-slate-600">
-                {lead.budget != null ? `₹${Number(lead.budget).toLocaleString("en-IN")}` : "—"}
-              </td>
-              <td className="px-4 py-3 text-slate-600">{lead.ownerName ?? "Unassigned"}</td>
-              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                <select
-                  value={status}
-                  onChange={(e) =>
-                    lead.id && onStatusChange(lead.id, { status: e.target.value as LeadStatusPayload["status"] })
-                  }
-                  className={`rounded-full border-0 px-2 py-1 text-xs font-semibold outline-none ${STATUS_STYLE[status] || ""}`}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </td>
+    <>
+      <div className="space-y-3 md:hidden">
+        {leads.map((lead) => {
+          const trip = lead.tripId ? tripsById.get(lead.tripId) : undefined;
+          return (
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              trip={trip}
+              onStatusChange={onStatusChange}
+              onOpen={onOpen}
+            />
+          );
+        })}
+      </div>
+
+      <div className="table-scroll hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Mobile</th>
+              <th className="px-4 py-3">Source</th>
+              <th className="px-4 py-3">Trip</th>
+              <th className="px-4 py-3">Heat</th>
+              <th className="px-4 py-3">Travel</th>
+              <th className="px-4 py-3">Budget</th>
+              <th className="px-4 py-3">Owner</th>
+              <th className="px-4 py-3">Status</th>
             </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {leads.map((lead) => {
+              const heat = lead.heat ?? "COLD";
+              const status = lead.status ?? "NEW";
+              const trip = lead.tripId ? tripsById.get(lead.tripId) : undefined;
+              return (
+              <tr key={lead.id} className="cursor-pointer hover:bg-slate-50" onClick={() => lead.id && onOpen(lead.id)}>
+                <td className="px-4 py-3 font-medium text-slate-900">{lead.customerName}</td>
+                <td className="px-4 py-3 text-slate-600">{lead.mobileNumber}</td>
+                <td className="px-4 py-3 text-slate-600">{lead.source}</td>
+                <td className="px-4 py-3 text-slate-600">{trip ? trip.name : lead.destination || "—"}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${HEAT_STYLE[heat] || ""}`}>
+                    {heat}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-600">{lead.travelDate ?? "—"}</td>
+                <td className="px-4 py-3 text-slate-600">
+                  {lead.budget != null ? `₹${Number(lead.budget).toLocaleString("en-IN")}` : "—"}
+                </td>
+                <td className="px-4 py-3 text-slate-600">{lead.ownerName ?? "Unassigned"}</td>
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <select
+                    value={status}
+                    onChange={(e) =>
+                      lead.id && onStatusChange(lead.id, { status: e.target.value as LeadStatusPayload["status"] })
+                    }
+                    className={`rounded-full border-0 px-2 py-1 text-xs font-semibold outline-none ${STATUS_STYLE[status] || ""}`}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

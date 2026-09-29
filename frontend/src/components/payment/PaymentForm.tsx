@@ -63,8 +63,8 @@ export function PaymentForm({ bookingId, onSaved, onClose }: Props) {
   }, [bookings, selBooking, amount, amountType, dueDate, gatewayRef, notes, onSaved]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-6">
-      <div className="mt-10 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-3 pt-safe sm:p-6">
+      <div className="mt-4 w-full max-w-lg rounded-xl bg-white p-4 shadow-xl sm:mt-10 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">Record payment</h3>
           <button onClick={onClose} className="text-sm text-slate-400 hover:text-slate-600">
@@ -92,7 +92,7 @@ export function PaymentForm({ bookingId, onSaved, onClose }: Props) {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-600">Amount (₹)</label>
               <input

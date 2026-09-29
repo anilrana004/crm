@@ -32,7 +32,7 @@ export function LeadFilters({ value, trips, onChange }: LeadFiltersProps) {
         value={value.search ?? ""}
         onChange={(e) => set({ search: e.target.value })}
         placeholder="Name or mobile"
-        className="w-48 rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-slate-900"
+        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-slate-900 sm:w-48"
       />
 
       <label className="text-xs font-medium text-slate-500">Status</label>

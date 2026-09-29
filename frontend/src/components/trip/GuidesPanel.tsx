@@ -68,7 +68,7 @@ export function GuidesPanel({ guides, canManage, onChanged }: GuidesPanelProps) 
 
       <div className="px-5 py-3">
         {adding && (
-          <form onSubmit={addGuide} className="mb-4 grid grid-cols-3 items-end gap-3">
+          <form onSubmit={addGuide} className="mb-4 grid grid-cols-1 items-end gap-3 sm:grid-cols-3">
             <label className="block text-xs font-medium text-slate-600">
               Full name
               <input

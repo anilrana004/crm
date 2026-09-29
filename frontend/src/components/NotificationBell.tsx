@@ -17,7 +17,12 @@ function timeAgo(iso: string | undefined): string {
 
 const EMPTY: NotificationFeed = { items: [], unread: 0 };
 
-export function NotificationBell() {
+type NotificationBellProps = {
+  /** Drawer sits above the trigger (desktop sidebar) or below (mobile top bar). */
+  placement?: "up" | "down";
+};
+
+export function NotificationBell({ placement = "up" }: NotificationBellProps) {
   const router = useRouter();
   const [feed, setFeed] = useState<NotificationFeed>(EMPTY);
   const [open, setOpen] = useState(false);
@@ -90,7 +95,11 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 z-50 mb-2 flex max-h-[70vh] w-80 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+        <div
+          className={`absolute right-0 z-50 flex max-h-[min(70vh,28rem)] w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ${
+            placement === "down" ? "top-full mt-2" : "bottom-full mb-2"
+          }`}
+        >
           <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-2.5">
             <span className="text-sm font-semibold text-slate-900">Notifications</span>
             {feed.unread > 0 && (

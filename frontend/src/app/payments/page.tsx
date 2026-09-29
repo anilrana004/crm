@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState, Suspense } from "react";
 import { api, ApiClientError, type Payment, type PaymentSummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 import { PaymentForm } from "@/components/payment/PaymentForm";
 
 const CAN_WRITE = ["SALES", "MANAGER", "ADMIN", "CEO"];
@@ -90,10 +90,8 @@ function PaymentsView() {
 
   return (
     <>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
+      <AppShell mainClassName="p-4 sm:p-6">
+          <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold text-slate-900">Payments</h1>
               <p className="text-sm text-slate-500">
@@ -103,7 +101,7 @@ function PaymentsView() {
             {canWrite && (
               <button
                 onClick={() => setShowForm(true)}
-                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 sm:w-auto"
               >
                 + Record payment
               </button>
@@ -111,7 +109,7 @@ function PaymentsView() {
           </div>
 
           {bookingFilter && (
-            <section className="mb-5 grid grid-cols-4 gap-4 rounded-xl border border-slate-200 bg-white p-4">
+            <section className="mb-5 grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
               {[
                 { label: "Booking total", value: fmtMoney(summary?.grossAmount) },
                 { label: "Net (after discount)", value: fmtMoney(summary?.netAmount) },
@@ -123,7 +121,7 @@ function PaymentsView() {
                   <div className="mt-1 text-lg font-semibold text-slate-900">{c.value}</div>
                 </div>
               ))}
-              <div className="rounded-lg bg-slate-50 px-4 py-3 col-span-2">
+              <div className="col-span-2 rounded-lg bg-slate-50 px-4 py-3 sm:col-span-2">
                 <div className="text-xs uppercase tracking-wide text-slate-400">Status</div>
                 <div className="mt-1 text-sm font-medium text-slate-800">
                   {summary?.hasOverdueLine ? (
@@ -180,8 +178,8 @@ function PaymentsView() {
               No payment lines{bookingFilter ? " for this booking" : ""} yet.
             </p>
           ) : (
-            <div className="rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-sm">
+            <div className="table-scroll overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-400">
                     <th className="px-4 py-2.5 font-medium">Booking</th>
@@ -289,8 +287,7 @@ function PaymentsView() {
               )}
             </div>
           )}
-        </main>
-      </div>
+      </AppShell>
 
       {showForm && (
         <PaymentForm

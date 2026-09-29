@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type Guide, type Trip, type TripDetail } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 import { TripForm } from "@/components/trip/TripForm";
 import { BatchesPanel } from "@/components/trip/BatchesPanel";
 import { GuidesPanel } from "@/components/trip/GuidesPanel";
@@ -73,10 +73,8 @@ export default function TripsPage() {
 
   return (
     <Protected>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
+      <AppShell mainClassName="p-4 sm:p-6">
+          <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-semibold text-slate-900">Trips &amp; Batches</h1>
               <p className="text-sm text-slate-500">{trips.length} trips in catalogue</p>
@@ -84,7 +82,7 @@ export default function TripsPage() {
             {canManage && (
               <button
                 onClick={() => setShowForm(true)}
-                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 sm:w-auto"
               >
                 + New trip
               </button>
@@ -93,7 +91,7 @@ export default function TripsPage() {
 
           {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-          <div className="grid grid-cols-[300px_1fr] items-start gap-6">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[300px_1fr]">
             <div className="space-y-2">
               {loading ? (
                 <p className="py-6 text-center text-sm text-slate-400">Loading trips…</p>
@@ -140,7 +138,7 @@ export default function TripsPage() {
               {selected ? (
                 <>
                   <section className="rounded-xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-lg font-semibold text-slate-900">{selected.name}</h2>
@@ -156,14 +154,14 @@ export default function TripsPage() {
                       {canManage && (
                         <button
                           onClick={() => setShowForm(true)}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                          className="w-full shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
                         >
                           Edit
                         </button>
                       )}
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-4">
+                    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                       {selected.itinerary && (
                         <div>
                           <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Itinerary</h4>
@@ -177,7 +175,7 @@ export default function TripsPage() {
                         </div>
                       )}
                       {selected.exclusions && (
-                        <div className="col-span-2">
+                        <div className="sm:col-span-2">
                           <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Exclusions</h4>
                           <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{selected.exclusions}</p>
                         </div>
@@ -195,8 +193,7 @@ export default function TripsPage() {
               )}
             </div>
           </div>
-        </main>
-      </div>
+      </AppShell>
 
       {showForm && (
         <TripForm

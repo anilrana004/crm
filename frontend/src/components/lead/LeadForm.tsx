@@ -104,8 +104,8 @@ export function LeadForm({ lead, trips = [], onCreated, onUpdated, onClose }: Le
     "mt-1 block w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500";
 
   return (
-    <div className="fixed inset-0 z-20 flex items-start justify-center bg-slate-900/50 p-6 pt-16 overflow-y-auto">
-      <form onSubmit={onSubmit} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-20 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-3 pt-safe sm:p-6 sm:pt-16">
+      <form onSubmit={onSubmit} className="w-full max-w-lg rounded-xl bg-white p-4 shadow-xl sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">
             {lead ? `Edit lead — ${lead.customerName}` : "New lead"}
@@ -115,8 +115,8 @@ export function LeadForm({ lead, trips = [], onCreated, onUpdated, onClose }: Le
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className="col-span-2 block text-sm font-medium text-slate-700">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Customer name
             <input required value={form.customerName} onChange={(e) => set("customerName", e.target.value)} className={input} />
           </label>
@@ -132,7 +132,7 @@ export function LeadForm({ lead, trips = [], onCreated, onUpdated, onClose }: Le
             WhatsApp
             <input placeholder="optional" value={form.whatsappNumber} onChange={(e) => set("whatsappNumber", e.target.value)} className={input} />
           </label>
-          <label className="col-span-2 block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Email
             <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={input} />
           </label>
@@ -152,7 +152,7 @@ export function LeadForm({ lead, trips = [], onCreated, onUpdated, onClose }: Le
             Destination
             <input placeholder="Kedarnath" value={form.destination} onChange={(e) => set("destination", e.target.value)} className={input} />
           </label>
-          <label className="col-span-2 block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Trip (catalogue)
             <select value={form.tripId} onChange={(e) => set("tripId", e.target.value)} className={input}>
               <option value="">No catalogue trip</option>
@@ -179,7 +179,7 @@ export function LeadForm({ lead, trips = [], onCreated, onUpdated, onClose }: Le
             Follow-up date
             <input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={input} />
           </label>
-          <label className="col-span-2 block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Remarks
             <textarea rows={2} value={form.remarks} onChange={(e) => set("remarks", e.target.value)} className={input} />
           </label>

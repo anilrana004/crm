@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, ApiClientError, type CustomerDetail, type CustomerListItem } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 
 const CAN_WRITE = ["MANAGER", "ADMIN", "CEO"];
 const ALLOWED_TAGS = [
@@ -128,19 +128,16 @@ function CustomersView() {
   }, [selectedId, suggestOffer, offerTags, marketingOptIn, notes, reload]);
 
   return (
-    <>
-      <div className="flex h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="border-b border-slate-200 bg-white px-6 py-4">
+    <AppShell flush>
+          <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
             <h1 className="text-lg font-semibold text-slate-900">Customers</h1>
             <p className="text-xs text-slate-400">
               Trip counts, spend and remarketing flags. Writes: Manager / Admin / CEO.
             </p>
           </header>
 
-          <div className="flex min-h-0 flex-1">
-            <div className="flex w-[46%] min-w-0 flex-col border-r border-slate-200 bg-white">
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <div className={`flex min-w-0 flex-col border-b border-slate-200 bg-white md:w-[46%] md:border-b-0 md:border-r ${selectedId ? "hidden md:flex" : "flex"}`}>
               <div className="border-b border-slate-200 p-3">
                 <input
                   value={search}
@@ -201,16 +198,26 @@ function CustomersView() {
               </div>
             </div>
 
-            <div className="min-w-0 flex-1 overflow-y-auto bg-white">
+            <div className={`min-w-0 flex-1 overflow-y-auto bg-white ${selectedId ? "flex flex-col" : "hidden md:block"}`}>
               {detailLoading ? (
-                <p className="p-6 text-sm text-slate-400">Loading…</p>
+                <p className="p-4 text-sm text-slate-400 sm:p-6">Loading…</p>
               ) : !detail ? (
-                <p className="p-6 text-sm text-slate-400">
+                <p className="p-4 text-sm text-slate-400 sm:p-6">
                   Select a customer to see the 360 view.
                 </p>
               ) : (
-                <div className="p-6">
-                  <div className="mb-4 flex items-start justify-between">
+                <div className="p-4 sm:p-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(null);
+                      setDetail(null);
+                    }}
+                    className="mb-3 text-sm text-slate-500 hover:text-slate-800 md:hidden"
+                  >
+                    ← Back to list
+                  </button>
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-slate-900">{detail.fullName}</h2>
                       <div className="text-sm text-slate-500">
@@ -223,7 +230,7 @@ function CustomersView() {
                         {detail.consentScope ? ` · ${detail.consentScope}` : ""}
                       </div>
                     </div>
-                    <div className="text-right text-sm">
+                    <div className="text-left text-sm sm:text-right">
                       <div className="text-xs text-slate-400">Lifetime</div>
                       <div className="text-lg font-semibold text-slate-900">
                         ₹{(detail.totalSpent ?? 0).toLocaleString("en-IN")}
@@ -280,7 +287,7 @@ function CustomersView() {
                           className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
                         />
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                           <input
                             type="checkbox"
@@ -293,7 +300,7 @@ function CustomersView() {
                         <button
                           onClick={save}
                           disabled={saving}
-                          className="rounded-md bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                          className="w-full rounded-md bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 sm:w-auto"
                         >
                           {saving ? "Saving…" : "Save flags"}
                         </button>
@@ -306,38 +313,40 @@ function CustomersView() {
                       <Label>Trip history</Label>
                     </div>
                     {detail.tripHistory?.length ? (
-                      <table className="w-full text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                            <th className="pb-2 pr-3 font-medium">Booking</th>
-                            <th className="pb-2 pr-3 font-medium">Trip</th>
-                            <th className="pb-2 pr-3 font-medium">Travel date</th>
-                            <th className="pb-2 pr-3 font-medium">Status</th>
-                            <th className="pb-2 pr-3 text-right font-medium">Net</th>
-                            <th className="pb-2 text-right font-medium">Paid</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {detail.tripHistory.map((t) => (
-                            <tr key={t.id} className="border-b border-slate-100">
-                              <td className="py-2 pr-3 text-slate-700">{t.bookingRef}</td>
-                              <td className="py-2 pr-3 text-slate-700">{t.tripName}</td>
-                              <td className="py-2 pr-3 text-slate-500">{fmtDate(t.travelDate)}</td>
-                              <td className="py-2 pr-3">
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                                  {t.status}
-                                </span>
-                              </td>
-                              <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
-                                ₹{(t.netAmount ?? 0).toLocaleString("en-IN")}
-                              </td>
-                              <td className="py-2 text-right tabular-nums text-slate-700">
-                                ₹{(t.appliedAmount ?? 0).toLocaleString("en-IN")}
-                              </td>
+                      <div className="table-scroll overflow-x-auto">
+                        <table className="w-full min-w-[560px] text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+                              <th className="pb-2 pr-3 font-medium">Booking</th>
+                              <th className="pb-2 pr-3 font-medium">Trip</th>
+                              <th className="pb-2 pr-3 font-medium">Travel date</th>
+                              <th className="pb-2 pr-3 font-medium">Status</th>
+                              <th className="pb-2 pr-3 text-right font-medium">Net</th>
+                              <th className="pb-2 text-right font-medium">Paid</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {detail.tripHistory.map((t) => (
+                              <tr key={t.id} className="border-b border-slate-100">
+                                <td className="py-2 pr-3 text-slate-700">{t.bookingRef}</td>
+                                <td className="py-2 pr-3 text-slate-700">{t.tripName}</td>
+                                <td className="py-2 pr-3 text-slate-500">{fmtDate(t.travelDate)}</td>
+                                <td className="py-2 pr-3">
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                    {t.status}
+                                  </span>
+                                </td>
+                                <td className="py-2 pr-3 text-right tabular-nums text-slate-700">
+                                  ₹{(t.netAmount ?? 0).toLocaleString("en-IN")}
+                                </td>
+                                <td className="py-2 text-right tabular-nums text-slate-700">
+                                  ₹{(t.appliedAmount ?? 0).toLocaleString("en-IN")}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     ) : (
                       <p className="text-sm text-slate-400">No confirmed/completed trips yet.</p>
                     )}
@@ -352,9 +361,7 @@ function CustomersView() {
               )}
             </div>
           </div>
-        </main>
-      </div>
-    </>
+    </AppShell>
   );
 }
 

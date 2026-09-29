@@ -73,7 +73,7 @@ export function BatchesPanel({ trip, guides, canManage, onChanged }: BatchesPane
       ) : (
         <div className="divide-y divide-slate-100 px-5">
           {adding && (
-            <div className="grid grid-cols-2 items-end gap-3 py-3">
+            <div className="grid grid-cols-1 items-end gap-3 py-3 sm:grid-cols-2">
               <label className="block text-xs font-medium text-slate-600">
                 Departure date
                 <input
@@ -124,7 +124,7 @@ export function BatchesPanel({ trip, guides, canManage, onChanged }: BatchesPane
                   Cancel
                 </button>
               </div>
-              {error && <p className="col-span-2 text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-red-600 sm:col-span-2">{error}</p>}
             </div>
           )}
 
@@ -196,7 +196,7 @@ function BatchRow({
 
   return (
     <div className="py-3">
-      <div className="grid grid-cols-[1fr_1fr_repeat(3,90px)_1fr] items-center gap-3">
+      <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_repeat(3,90px)_1fr]">
         <label className="block text-xs font-medium text-slate-600">
           Departure
           <input

@@ -4,6 +4,46 @@
   color-scheme: light;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* iOS safe areas for fixed chrome */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* Tables: allow horizontal swipe on phones without breaking the page */
+.table-scroll {
+  @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
+}
+
+.table-scroll > table {
+  @apply min-w-[640px];
+}
+
+/* Comfortable tap targets on form controls */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea,
+  button {
+    min-height: 2.5rem;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 0;
+  }
 }

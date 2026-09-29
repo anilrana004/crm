@@ -71,8 +71,8 @@ export function TripForm({ trip, onSaved, onClose }: TripFormProps) {
   const label = "block text-sm font-medium text-slate-700";
 
   return (
-    <div className="fixed inset-0 z-20 flex items-start justify-center bg-slate-900/50 p-6 pt-16 overflow-y-auto">
-      <form onSubmit={onSubmit} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-20 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-3 pt-safe sm:p-6 sm:pt-16">
+      <form onSubmit={onSubmit} className="w-full max-w-lg rounded-xl bg-white p-4 shadow-xl sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">{trip ? `Edit trip — ${trip.name}` : "New trip"}</h2>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700">
@@ -80,12 +80,12 @@ export function TripForm({ trip, onSaved, onClose }: TripFormProps) {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className="col-span-2 block text-sm font-medium text-slate-700">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Name
             <input required value={form.name} onChange={(e) => set("name", e.target.value)} className={input} />
           </label>
-          <label className={`${label} col-span-2`}>
+          <label className={`${label} sm:col-span-2`}>
             Category
             <select
               value={form.category}
@@ -99,7 +99,7 @@ export function TripForm({ trip, onSaved, onClose }: TripFormProps) {
               ))}
             </select>
           </label>
-          <label className={`${label} col-span-2`}>
+          <label className={`${label} sm:col-span-2`}>
             Booking type
             <select
               value={form.bookingType}
@@ -135,20 +135,20 @@ export function TripForm({ trip, onSaved, onClose }: TripFormProps) {
               className={input}
             />
           </label>
-          <label className={`${label} col-span-2`}>
+          <label className={`${label} sm:col-span-2`}>
             Itinerary
             <textarea rows={3} value={form.itinerary} onChange={(e) => set("itinerary", e.target.value)} className={input} />
           </label>
-          <label className={`${label} col-span-2`}>
+          <label className={`${label} sm:col-span-2`}>
             Inclusions
             <textarea rows={2} value={form.inclusions} onChange={(e) => set("inclusions", e.target.value)} className={input} />
           </label>
-          <label className={`${label} col-span-2`}>
+          <label className={`${label} sm:col-span-2`}>
             Exclusions
             <textarea rows={2} value={form.exclusions} onChange={(e) => set("exclusions", e.target.value)} className={input} />
           </label>
           {trip?.id && (
-            <label className={`${label} col-span-2 flex items-center gap-2`}>
+            <label className={`${label} flex items-center gap-2 sm:col-span-2`}>
               <input
                 type="checkbox"
                 checked={form.active}

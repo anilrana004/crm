@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, type Lead, type LeadListParams, type LeadStatusPayload, type Trip } from "@/lib/api";
 import { pickLostReason } from "@/lib/lostReasons";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 import { LeadTable } from "@/components/lead/LeadTable";
 import { LeadBoard } from "@/components/lead/LeadBoard";
 import { LeadFilters } from "@/components/lead/LeadFilters";
@@ -86,74 +86,71 @@ export default function LeadsPage() {
 
   return (
     <Protected>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-semibold text-slate-900">Leads</h1>
-              <p className="text-sm text-slate-500">{total} total</p>
-            </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              + New lead
-            </button>
+      <AppShell mainClassName="p-4 sm:p-6">
+        <div className="mb-6 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Leads</h1>
+            <p className="text-sm text-slate-500">{total} total</p>
           </div>
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 sm:w-auto"
+          >
+            + New lead
+          </button>
+        </div>
 
-          <div className="mb-4 flex items-center gap-1">
-            <button className={TAB_STYLE(view === "board")} onClick={() => setView("board")}>
-              Board
-            </button>
-            <button className={TAB_STYLE(view === "table")} onClick={() => setView("table")}>
-              Table
-            </button>
-          </div>
+        <div className="mb-4 flex items-center gap-1">
+          <button className={TAB_STYLE(view === "board")} onClick={() => setView("board")}>
+            Board
+          </button>
+          <button className={TAB_STYLE(view === "table")} onClick={() => setView("table")}>
+            Table
+          </button>
+        </div>
 
-          <LeadFilters value={filters} trips={trips} onChange={changeFilters} />
+        <LeadFilters value={filters} trips={trips} onChange={changeFilters} />
 
-          {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-          {loading ? (
-            <p className="py-10 text-center text-sm text-slate-400">Loading leads…</p>
-          ) : view === "board" ? (
-            <LeadBoard
+        {error && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {loading ? (
+          <p className="py-10 text-center text-sm text-slate-400">Loading leads…</p>
+        ) : view === "board" ? (
+          <LeadBoard
+            leads={leads}
+            tripsById={tripsById}
+            onStatusChange={handleStatusChange}
+            onOpen={(id) => router.push(`/leads/${id}`)}
+          />
+        ) : (
+          <>
+            <LeadTable
               leads={leads}
               tripsById={tripsById}
               onStatusChange={handleStatusChange}
               onOpen={(id) => router.push(`/leads/${id}`)}
             />
-          ) : (
-            <>
-              <LeadTable
-                leads={leads}
-                tripsById={tripsById}
-                onStatusChange={handleStatusChange}
-                onOpen={(id) => router.push(`/leads/${id}`)}
-              />
-              {total > 20 && (
-                <div className="mt-4 flex items-center gap-3 text-sm">
-                  <button
-                    disabled={page === 0}
-                    onClick={() => setPage((p) => p - 1)}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
-                  >
-                    ← Prev
-                  </button>
-                  <span className="text-slate-500">Page {page + 1}</span>
-                  <button
-                    disabled={(page + 1) * 20 >= total}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </main>
-      </div>
+            {total > 20 && (
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <button
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
+                >
+                  ← Prev
+                </button>
+                <span className="text-slate-500">Page {page + 1}</span>
+                <button
+                  disabled={(page + 1) * 20 >= total}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 disabled:opacity-40"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </AppShell>
 
       {showForm && (
         <LeadForm

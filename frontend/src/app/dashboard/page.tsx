@@ -11,7 +11,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 
 const CAN_WRITE = ["MANAGER", "ADMIN", "CEO"];
 const CARD_FIELDS: { key: string; label: string }[] = [
@@ -147,18 +147,15 @@ function DashboardView() {
   const overall = targets?.overall;
 
   return (
-    <>
-      <div className="flex h-screen bg-slate-50">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+    <AppShell flush>
+          <header className="flex flex-col items-stretch gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
               <h1 className="text-lg font-semibold text-slate-900">Sales dashboard</h1>
               <p className="text-xs text-slate-400">
                 Pipeline cards, per-executive performance and monthly targets.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex overflow-hidden rounded-md border border-slate-200 text-sm">
                 <button
                   onClick={() => setPeriod("today")}
@@ -185,7 +182,7 @@ function DashboardView() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             {error && <p className="m-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-            <section className="p-6 pb-2">
+            <section className="px-4 pb-2 pt-4 sm:px-6 sm:pt-6">
               <div className="mb-3 text-sm font-medium text-slate-700">
                 Pipeline & revenue — {summary ? summary.period : period}
               </div>
@@ -205,11 +202,11 @@ function DashboardView() {
               )}
             </section>
 
-            <section className="p-6 pt-4">
+            <section className="px-4 pt-4 sm:px-6">
               <div className="mb-2 text-sm font-medium text-slate-700">
                 Per-executive performance · {monthLabel(month)}
               </div>
-              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+              <div className="table-scroll overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
@@ -262,8 +259,8 @@ function DashboardView() {
               </div>
             </section>
 
-            <section className="p-6 pt-4">
-              <div className="mb-2 flex items-baseline justify-between">
+            <section className="px-4 pt-4 pb-6 sm:px-6">
+              <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <div className="text-sm font-medium text-slate-700">
                   Monthly targets · {monthLabel(month)}
                 </div>
@@ -339,7 +336,7 @@ function DashboardView() {
                   No targets set for this month.
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <div className="table-scroll overflow-x-auto rounded-lg border border-slate-200 bg-white">
                   <table className="w-full min-w-[720px] text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
@@ -391,9 +388,7 @@ function DashboardView() {
               )}
             </section>
           </div>
-        </main>
-      </div>
-    </>
+    </AppShell>
   );
 }
 

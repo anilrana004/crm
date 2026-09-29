@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, ApiClientError, type OpsHandoff } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Protected } from "@/components/Protected";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 
 const CAN_WRITE = ["OPS", "MANAGER", "ADMIN", "CEO"];
 
@@ -129,9 +129,7 @@ function OperationsView() {
 
   return (
     <>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <main className="flex-1 p-6">
+      <AppShell mainClassName="p-4 sm:p-6">
           <div className="mb-6">
             <h1 className="text-xl font-semibold text-slate-900">Operations</h1>
             <p className="text-sm text-slate-500">
@@ -182,8 +180,8 @@ function OperationsView() {
               No ops handoffs yet. Confirm a booking to create one.
             </p>
           ) : (
-            <div className="rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-sm">
+            <div className="table-scroll overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full min-w-[800px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-400">
                     <th className="px-4 py-2.5 font-medium">Ops ref</th>
@@ -355,8 +353,7 @@ function OperationsView() {
               )}
             </div>
           )}
-        </main>
-      </div>
+      </AppShell>
     </>
   );
 }
