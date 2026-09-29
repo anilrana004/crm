@@ -27,7 +27,9 @@ spring:
     connection-timeout: ${RABBITMQ_CONNECT_TIMEOUT:3s}
 
 server:
+  # PORT=80 on Vercel containers (Dockerfile.vercel); local Compose keeps 8080.
   port: ${PORT:8080}
+  address: ${SERVER_ADDRESS:0.0.0.0}
   error:
     include-stacktrace: never
     include-message: never
