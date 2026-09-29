@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
-// Local / Docker only: proxy /api → Spring Boot. On Vercel, top-level
-// vercel.json rewrites send /api/* to the `backend` service, so Next must
-// not also rewrite those paths (VERCEL=1 is set in Vercel builds & runtime).
+// On Vercel, /api is handled by app/api/[...path] (demo mode).
+// Locally the catch-all proxies to Spring; this rewrite remains as fallback.
 const onVercel = process.env.VERCEL === "1";
 
 const RAW_API_TARGET = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api";
