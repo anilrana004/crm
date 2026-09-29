@@ -1,5 +1,6 @@
 package com.securetravels.crm.lead;
 
+import com.securetravels.crm.common.audit.AuditAction;
 import com.securetravels.crm.common.audit.AuditLog;
 import com.securetravels.crm.common.audit.AuditLogRepository;
 import com.securetravels.crm.common.audit.AuditService;
@@ -33,6 +34,7 @@ import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,6 +42,9 @@ import java.util.UUID;
 public class LeadService {
 
     private static final Set<Role> SEES_ALL = EnumSet.of(Role.MANAGER, Role.ADMIN, Role.CEO);
+
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(LeadService.class);
 
     /** Allowed status transitions (business rules). LOST is absorbing; a confirmed
      *  booking can only be reopened to QUOTATION_SENT by its cancellation. */
@@ -57,10 +62,12 @@ public class LeadService {
     private final AuditService auditService;
     private final LeadScoringService scoringService;
     private final FollowUpAutomation automation;
+    private final com.securetravels.crm.webhook.RoundRobinService roundRobin;
 
     public LeadService(LeadRepository leads, UserRepository users, Customer360Repository customers,
                        AuditLogRepository auditLogRepository, AuditService auditService,
-                       LeadScoringService scoringService, FollowUpAutomation automation) {
+                       LeadScoringService scoringService, FollowUpAutomation automation,
+                       com.securetravels.crm.webhook.RoundRobinService roundRobin) {
         this.leads = leads;
         this.users = users;
         this.customers = customers;
@@ -68,6 +75,7 @@ public class LeadService {
         this.auditService = auditService;
         this.scoringService = scoringService;
         this.automation = automation;
+        this.roundRobin = roundRobin;
     }
 
     @Transactional
@@ -140,6 +148,113 @@ public class LeadService {
         }
         automation.onLeadCreated(saved.getId(), saved.getOwnerId());
         return toResponse(saved);
+    }
+
+    /**
+     * A lead created because the person contacted <em>us</em> first — an inbound
+     * WhatsApp or SMS message from a number we have no record of.
+     *
+     * <p>This exists instead of the communications layer constructing a
+     * {@link Lead} directly, for two reasons:
+     *
+     * <ol>
+     *   <li><b>It is not a DPDPA bypass.</b> {@link #createInternal} refuses any
+     *       lead without an explicit consent flag, and that guard must not be
+     *       circumvented by a caller that "knows better". Here the basis is
+     *       recorded honestly: the person initiated contact, which is the
+     *       consent needed to hold their number in order to answer them. The
+     *       recorded scope is deliberately narrow — replying to this enquiry —
+     *       and <strong>grants no marketing consent whatsoever</strong>.
+     *       Marketing stays UNKNOWN until they opt in, so an inbound "hi" can
+     *       never become a promotional send.</li>
+     *   <li><b>Duplicate detection still applies.</b> The same
+     *       {@code findFirstActiveDuplicate} check runs, and an existing active
+     *       lead is returned rather than duplicated, so three gateway retries
+     *       cannot produce three leads.</li>
+     * </ol>
+     *
+     * @return the lead to attach the inbound message to, existing or new.
+     */
+    @Transactional
+    public Lead findOrCreateFromInbound(String mobile, Lead.Source source, String inboundSummary) {
+        String digits = normalizedDigits(mobile);
+        Lead existing = leads.findFirstActiveDuplicate(digits).orElse(null);
+        if (existing != null) {
+            existing.setLastContactedAt(Instant.now());
+            log.info("[lead] inbound message matched existing lead {} for {}", existing.getId(), digits);
+            return leads.save(existing);
+        }
+
+        Customer360 customer = customers.findByMobileDigits(digits).orElse(null);
+        Lead lead = new Lead();
+        // No name is known from a phone number; the "Unknown" placeholder is
+        // replaced the moment a human or the customer supplies a real one.
+        lead.setCustomerName("Unknown");
+        lead.setMobileNumber(mobile);
+        lead.setMobileDigits(digits);
+        lead.setWhatsappNumber(digits);
+        lead.setSource(source);
+        lead.setOwnerId(pickInboundOwner());
+        lead.setStatus(Lead.Status.NEW);
+        lead.setConsentGiven(true);
+        lead.setConsentCapturedAt(Instant.now());
+        lead.setConsentScope("reply to inbound enquiry only; NOT marketing");
+        lead.setRemarks(inboundSummary);
+        lead.setLastContactedAt(Instant.now());
+        if (customer != null) {
+            lead.setCustomer360Id(customer.getId());
+        }
+        lead.setHeat(scoringService.score(lead));
+
+        Lead saved = leads.save(lead);
+        auditService.record("LEAD", saved.getId(), AuditAction.CREATE,
+                "lead_from_inbound", source.name(), saved.getId().toString());
+        if (saved.getOwnerId() != null) {
+            automation.onLeadCreated(saved.getId(), saved.getOwnerId());
+        }
+        log.info("[lead] created lead {} from inbound {} message for {} (owner={})",
+                saved.getId(), source, digits, saved.getOwnerId());
+        return saved;
+    }
+
+    /**
+     * The id of the active (non-LOST) lead for a mobile number, if there is one.
+     *
+     * <p>Exists so other features can resolve "who does this number belong to"
+     * without autowiring {@link LeadRepository}. Returns only the identifier:
+     * a caller that needs lead state should go through {@link LeadService},
+     * which is where the rules about it live.
+     */
+    @Transactional(readOnly = true)
+    public Optional<UUID> findActiveLeadIdByMobile(String mobile) {
+        String digits = normalizedDigits(mobile);
+        if (digits == null) {
+            return Optional.empty();
+        }
+        return leads.findFirstActiveDuplicate(digits).map(Lead::getId);
+    }
+
+    /**
+     * Who should own a lead that arrived by itself.
+     *
+     * <p>Round-robin, the same rule the website webhook already uses — an
+     * inbound enquiry is a lead like any other and must not sit unowned in a
+     * queue nobody watches.
+     *
+     * <p>Returns null when there is nobody available. That is deliberate and the
+     * reason {@code automation} is only invoked for an owned lead: a customer
+     * who messaged us at 2am must not have their enquiry discarded because the
+     * office is unstaffed. An unowned lead sits in the list until a manager
+     * assigns it, which is visible and recoverable; losing the enquiry is not.
+     */
+    private UUID pickInboundOwner() {
+        try {
+            User owner = roundRobin.pickNextSalesUser();
+            return owner == null ? null : owner.getId();
+        } catch (RuntimeException e) {
+            log.warn("[lead] no owner available for an inbound lead; leaving it unassigned: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Transactional(readOnly = true)

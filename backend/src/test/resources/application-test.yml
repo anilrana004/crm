@@ -5,7 +5,6 @@ spring:
     password: ""
   flyway:
     clean-disabled: false
-
 app:
   login-rate-limit:
     capacity: 10000
@@ -18,17 +17,23 @@ app:
       window-minutes: 1
   bootstrap-demo-data: false
   whatsapp:
-    # Pinned explicitly rather than inherited from the AppProperties default, so
-    # WhatsAppCommunicationIT signs with the same value and cannot silently pass
-    # if that default changes.
     mode: SANDBOX
     webhook-secret: test-interakt-webhook-secret
     country-code: "+91"
   messaging:
-    # Keep the inline retry loop instant; a retryable-failure test must not sleep.
     max-attempts: 3
     retry-backoff-millis: 1
-
+  automation:
+    # Module 2 pollers must be dormant under test: the ITs drive the relay,
+    # poller and sweeping manually, and a background @Scheduled would race them.
+    # Values large enough that no test could conceivably reach them.
+    relay-poll-millis: 3600000
+    step-poll-millis: 3600000
+    trigger-poll-millis: 86400000
+    recovery-interval-millis: 86400000
+    recovery-grace-millis: 3600000
+    poll-batch-size: 20
+    event-max-attempts: 5
 logging:
   level:
     org.hibernate.SQL: OFF

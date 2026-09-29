@@ -37,10 +37,11 @@ public class TimelineEvent extends CreatedOnly {
 
     public enum Direction { INBOUND, OUTBOUND }
 
-    public enum Channel { WHATSAPP, EMAIL, SYSTEM }
+    public enum Channel { WHATSAPP, EMAIL, SMS, SYSTEM }
 
     public enum Kind {
         TEMPLATE_QUEUED, TEMPLATE_SENT, TEMPLATE_DELIVERED, TEMPLATE_READ,
+        TEMPLATE_OPENED, TEMPLATE_BOUNCED,
         TEMPLATE_FAILED, REPLY_RECEIVED, MEDIA_RECEIVED, BUTTON_CLICKED,
         SYSTEM_NOTE
     }
@@ -123,10 +124,10 @@ public class TimelineEvent extends CreatedOnly {
         return e;
     }
 
-    public static TimelineEvent inbound(SubjectType subjectType, UUID subjectId, Kind kind,
+    public static TimelineEvent inbound(SubjectType subjectType, UUID subjectId, Channel channel, Kind kind,
                                        String summary, String body, String provider,
                                        String providerMessageId, String customerMobile) {
-        TimelineEvent e = new TimelineEvent(subjectType, subjectId, Direction.INBOUND, Channel.WHATSAPP,
+        TimelineEvent e = new TimelineEvent(subjectType, subjectId, Direction.INBOUND, channel,
                 kind, summary);
         e.body = body;
         e.provider = provider;

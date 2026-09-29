@@ -3,6 +3,7 @@ package com.securetravels.crm.communications;
 import com.securetravels.crm.common.config.AppProperties;
 import com.securetravels.crm.common.exception.BadRequestException;
 import com.securetravels.crm.common.util.PhoneUtils;
+import com.securetravels.crm.communications.consent.Purpose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
@@ -24,9 +25,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Entry point for every outbound customer message (Module 4).
- *
- * <p>Resolves the route once, at enqueue time:
+     * Entry point for every outbound customer message (Module 4).
+     *
+     * <p><b>Do not call this from outside the channel.</b> Since Phase 5
+     * Module 1, {@link SendGateService} is the only caller
+     * {@link #dispatch(SendRequest)} — an {@link OutboundChannelDispatcher}
+     * implementation; usage elsewhere bypasses the consent gate.
+     *
+     * <p>Resolves the route once, at enqueue time:
  *
  * <ul>
  *   <li>{@code INLINE} — call {@link WhatsAppSender} on this thread, with a
@@ -47,7 +53,7 @@ import java.util.UUID;
  * Java serialization format — a schema change can never break message replay.
  */
 @Service
-public class WhatsAppDispatchService {
+public class WhatsAppDispatchService implements OutboundChannelDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(WhatsAppDispatchService.class);
 
@@ -86,6 +92,19 @@ public class WhatsAppDispatchService {
     /**
      * Record the intent, log it to the timeline, and hand it to the route.
      *
+     * <p><b>Transactional entry is {@link #dispatch(SendRequest)}.</b> This
+     * method keeps the record-keeping, but its own {@code @Transactional} would
+     * be a silent no-op: it is called from inside this bean, and self-invocation
+     * never goes through the Spring proxy.
+     *
+     * <p>{@code REQUIRES_NEW} (on {@code dispatch}) rather than the default
+     * {@code REQUIRED}, because the main caller is an {@code AFTER_COMMIT}
+     * listener. At that point the outer transaction is committed, but Spring's
+     * synchronisation context still reports one as active, so a {@code REQUIRED}
+     * call silently joins a transaction that no longer exists and the first
+     * {@code save} fails with {@code TransactionRequiredException}. Queuing a
+     * message must be durable in its own right regardless of what called it.
+     *
      * <p>Delivery is triggered by {@link WhatsAppQueuedEvent}, which
      * {@link WhatsAppRoutingListener} handles {@code AFTER_COMMIT}. Routing from
      * inside this method would be a subtle data-loss bug, not a style choice: in
@@ -94,16 +113,7 @@ public class WhatsAppDispatchService {
      * affected rows, conclude the message was already handled, and ack it —
      * leaving a {@code QUEUED} row that neither the queue nor the recovery sweep
      * will ever revisit.
-     *
-     * <p>{@code REQUIRES_NEW} rather than the default {@code REQUIRED}, because
-     * the main caller is an {@code AFTER_COMMIT} listener. At that point the
-     * outer transaction is committed, but Spring's synchronisation context still
-     * reports one as active, so a {@code REQUIRED} call silently joins a
-     * transaction that no longer exists and the first {@code save} fails with
-     * {@code TransactionRequiredException}. Queuing a message must be durable in
-     * its own right regardless of what called it.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WhatsAppMessage enqueue(SubjectType subjectType, UUID subjectId,
                                    String templateCode, String mobile, List<String> bodyValues) {
         String digits = PhoneUtils.normalize(mobile);
@@ -113,6 +123,12 @@ public class WhatsAppDispatchService {
         WhatsAppTemplate template = templates.findByCodeAndEnabledTrue(templateCode)
                 .orElseThrow(() -> new BadRequestException(
                         "No enabled WhatsApp template with code " + templateCode));
+        if (template.getApprovalStatus() != WhatsAppTemplate.ApprovalStatus.APPROVED) {
+            // Meta only relays approved templates; queueing a rejected or
+            // still-pending one burns a plan quota on a guaranteed failure.
+            throw new BadRequestException("WhatsApp template " + templateCode
+                    + " is not approved (status " + template.getApprovalStatus() + ")");
+        }
 
         List<String> values = bodyValues == null ? List.of() : List.copyOf(bodyValues);
         if (values.size() != template.getExpectedParams()) {
@@ -222,5 +238,37 @@ public class WhatsAppDispatchService {
                 cutoff, WhatsAppMessage.Status.QUEUED, WhatsAppMessage.Status.SENDING));
         log.warn("[whatsapp] recovered {} message(s) stranded in SENDING; re-dispatching", stuck.size());
         stuck.forEach(this::route);
+    }
+
+    // ------------------------------------------------ OutboundChannelDispatcher
+
+    @Override
+    public TimelineEvent.Channel channel() {
+        return TimelineEvent.Channel.WHATSAPP;
+    }
+
+    @Override
+    public Purpose resolvePurpose(SendRequest request) {
+        return templates.findByCodeAndEnabledTrue(request.templateCode())
+                .map(t -> t.getCategory() == WhatsAppTemplate.Category.MARKETING
+                        ? Purpose.MARKETING : Purpose.TRANSACTIONAL)
+                .orElse(request.purpose() == null ? Purpose.TRANSACTIONAL : request.purpose());
+    }
+
+    /**
+     * The gate's entry point for a WhatsApp send. {@code REQUIRES_NEW} lives here
+     * — on the method the send gate calls on this bean's <em>proxy</em> — because
+     * the alternative (annotating the record-keeping below it) is defeated by
+     * self-invocation: {@code enqueue} is called from this same bean, so the
+     * proxy is never involved and no transaction would ever be opened. The main
+     * caller is an {@code AFTER_COMMIT} listener, where the outer transaction is
+     * already committed but Spring's synchronisation context still reports one
+     * active; see {@link #enqueue} for the history.
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public UUID dispatch(SendRequest request) {
+        return enqueue(request.subjectType(), request.subjectId(), request.templateCode(),
+                request.mobile(), request.bodyValues()).getId();
     }
 }

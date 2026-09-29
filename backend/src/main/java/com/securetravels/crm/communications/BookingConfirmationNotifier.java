@@ -35,16 +35,16 @@ public class BookingConfirmationNotifier {
     private static final Logger log = LoggerFactory.getLogger(BookingConfirmationNotifier.class);
     private static final DateTimeFormatter DATE = DateTimeFormatter.ISO_LOCAL_DATE;
 
-    private final WhatsAppDispatchService dispatch;
+    private final SendGateService sendGate;
 
-    public BookingConfirmationNotifier(WhatsAppDispatchService dispatch) {
-        this.dispatch = dispatch;
+    public BookingConfirmationNotifier(SendGateService sendGate) {
+        this.sendGate = sendGate;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onBookingConfirmed(BookingConfirmedEvent event) {
         try {
-            dispatch.enqueue(
+            SendDecision decision = sendGate.request(SendRequest.whatsappTemplate(
                     SubjectType.BOOKING,
                     event.bookingId(),
                     "BOOKING_CONFIRMED",
@@ -54,7 +54,14 @@ public class BookingConfirmationNotifier {
                             blank(event.customerName()),
                             blank(event.bookingRef()),
                             blank(event.packageName()),
-                            event.travelDate() == null ? "" : DATE.format(event.travelDate())));
+                            event.travelDate() == null ? "" : DATE.format(event.travelDate())),
+                    null));
+            if (!decision.accepted()) {
+                // BOOKING_CONFIRMED is TRANSACTIONAL, so this can only happen on
+                // an input error or a disabled template; report it loudly.
+                log.warn("[whatsapp] booking {} confirmed but BOOKING_CONFIRMED not queued: {}",
+                        event.bookingRef(), decision.reason());
+            }
         } catch (RuntimeException e) {
             // The booking is confirmed either way. Log loudly — this is a
             // customer who will not hear from us.

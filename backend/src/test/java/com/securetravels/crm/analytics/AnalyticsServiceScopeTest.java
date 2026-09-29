@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.UUID;
 
@@ -18,8 +19,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * made in the service rather than in @PreAuthorize. These tests pin that
  * behaviour, because the failure mode is silent: remove the scoping and every
  * report still returns data, just somebody else's.
+ *
+ * <p>These assertions need no database at all, but {@code @SpringBootTest} pulls
+ * in the whole context -- including Flyway. The active profile therefore
+ * matters: without {@code test} this class pointed at the development database
+ * and ran migrations against it, which is not something a unit test should ever
+ * be able to do.
  */
 @SpringBootTest
+@ActiveProfiles("test")
 @WithMockUser
 class AnalyticsServiceScopeTest {
 

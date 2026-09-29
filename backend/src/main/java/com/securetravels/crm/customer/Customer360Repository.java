@@ -11,6 +11,8 @@ import java.util.UUID;
 public interface Customer360Repository extends JpaRepository<Customer360, UUID> {
     Optional<Customer360> findByMobileDigits(String mobileDigits);
 
+    Optional<Customer360> findByEmailIgnoreCase(String email);
+
     @Query("""
             select c from Customer360 c
             where (:pattern is null or lower(c.fullName) like :pattern

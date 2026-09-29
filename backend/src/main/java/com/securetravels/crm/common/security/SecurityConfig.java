@@ -37,6 +37,13 @@ public class SecurityConfig {
             "/api/auth/refresh",
             "/api/auth/logout",
             "/api/webhook/**",
+            // Phase 5 Module 2. The SES and SMS-gateway webhooks are
+            // unauthenticated by necessity (the provider holds no JWT), so they
+            // are reachable without a token and MUST verify an HMAC signature
+            // themselves - see EmailWebhookService / SmsWebhookService, which
+            // reject a missing or wrong signature rather than defaulting open.
+            "/api/v1/webhooks/email/**",
+            "/api/v1/webhooks/sms/**",
             "/actuator/health",
             // Phase 3 Module 5. Prometheus scrapes without credentials by
             // default, so requiring a JWT here means the module silently scrapes

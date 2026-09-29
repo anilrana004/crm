@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Full customer view incl. trip-history timeline and marketing/offer flags. */
@@ -26,6 +27,7 @@ public record CustomerDetailResponse(
         String[] offerTags,
         String notes,
         List<TripRow> tripHistory,
+        Map<String, String> marketingConsent,
         Instant createdAt,
         Instant updatedAt
 ) {

@@ -4,6 +4,9 @@ import com.securetravels.crm.BaseIT;
 import com.securetravels.crm.common.security.HmacSigner;
 import com.securetravels.crm.customer.Customer360;
 import com.securetravels.crm.customer.Customer360Repository;
+import com.securetravels.crm.communications.inbound.InboundMessage;
+import com.securetravels.crm.communications.inbound.InboundMessageRepository;
+import com.securetravels.crm.lead.Lead;
 import com.securetravels.crm.lead.LeadRepository;
 import com.securetravels.crm.trip.BatchRepository;
 import com.securetravels.crm.user.Role;
@@ -43,17 +46,19 @@ class WhatsAppCommunicationIT extends BaseIT {
     @Autowired private TimelineEventRepository timeline;
     @Autowired private Customer360Repository customerRepository;
     @Autowired private LeadRepository leadRepository;
+    @Autowired private InboundMessageRepository inboundMessages;
     @Autowired private BatchRepository batchRepository;
 
     // ------------------------------------------------------------------ templates
 
-    @Test
-    void nineTemplatesAreSeededFromTheMigrationAndVisibleToOperators() throws Exception {
+@Test
+    void templatesSeededFromTheMigrationsAndVisibleToOperators() throws Exception {
         String token = salesToken("ravi", "ravi@securetravels.in");
 
         mockMvc.perform(get("/api/whatsapp/templates").header("Authorization", authHeader(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(9))
+                // V12 seeded nine Module 4 templates; V14 added OPTOUT_CONFIRMED.
+                .andExpect(jsonPath("$.length()").value(10))
                 // The Interakt dashboard code name is what an operator must create.
                 .andExpect(jsonPath("$[?(@.code=='BOOKING_CONFIRMED')].interaktName")
                         .value("securetravels_booking_confirmed"))
@@ -243,13 +248,35 @@ class WhatsAppCommunicationIT extends BaseIT {
     }
 
     @Test
-    void aReplyFromAnUnknownNumberIsNotAttachedToAnybody() throws Exception {
+    void aReplyFromAnUnknownNumberIsStillCapturedAsANewLead() throws Exception {
+        // Phase 5 Module 2 reverses the old anti-spam behaviour. This used to
+        // assert the message was dropped ("random spam" from a number we have
+        // never seen, and we had no way to answer it). Now an unmatched
+        // inbound message is captured and a lead is created, because refusing
+        // to record it is indistinguishable from never having received it --
+        // the business cannot answer a question it cannot see.
         String reply = """
                 {"type":"message_received","data":{
                   "customer":{"id":"c9","phone_number":"9000000000","country_code":"91"},
                   "message":{"id":"inbound-3","message":"random spam"}}}""";
-        webhook(reply).andExpect(status().isOk()).andExpect(jsonPath("$.applied").value(0));
-        assertThat(timeline.findAll()).noneMatch(e -> e.getKind() == TimelineEvent.Kind.REPLY_RECEIVED);
+        webhook(reply).andExpect(status().isOk()).andExpect(jsonPath("$.applied").value(1));
+
+        // 10 digits, no +91: PhoneUtils.normalize is the single definition of
+        // a stored mobile, so a lead created from any channel lands on the same
+        // digits and dedup keeps working.
+        Lead captured = leadRepository.findFirstActiveDuplicate("9000000000").orElseThrow();
+        assertThat(captured.getSource()).isEqualTo(Lead.Source.WHATSAPP);
+        assertThat(captured.getStatus()).isEqualTo(Lead.Status.NEW);
+        // Contact consent, never marketing consent: they messaged us, which
+        // says nothing about whether they want to be marketed to.
+        assertThat(captured.isConsentGiven()).isTrue();
+        assertThat(captured.getConsentScope()).contains("NOT marketing");
+
+        InboundMessage stored = inboundMessages
+                .findByProviderAndProviderMessageId(InteraktWhatsAppGateway.PROVIDER, "inbound-3")
+                .orElseThrow();
+        assertThat(stored.getLeadId()).isEqualTo(captured.getId());
+        assertThat(stored.getBody()).isEqualTo("random spam");
     }
 
     // ------------------------------------------------------------------ authorisation

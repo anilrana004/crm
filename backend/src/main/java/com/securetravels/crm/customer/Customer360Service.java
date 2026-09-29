@@ -8,6 +8,7 @@ import com.securetravels.crm.common.exception.BadRequestException;
 import com.securetravels.crm.common.exception.ForbiddenException;
 import com.securetravels.crm.common.exception.NotFoundException;
 import com.securetravels.crm.common.util.XssSanitizer;
+import com.securetravels.crm.communications.consent.ConsentService;
 import com.securetravels.crm.customer.dto.CustomerDetailResponse;
 import com.securetravels.crm.customer.dto.CustomerListResponse;
 import com.securetravels.crm.customer.dto.CustomerUpdateRequest;
@@ -48,12 +49,14 @@ public class Customer360Service {
     private final Customer360Repository customers;
     private final BookingRepository bookings;
     private final AuditService auditService;
+    private final ConsentService consentService;
 
     public Customer360Service(Customer360Repository customers, BookingRepository bookings,
-                              AuditService auditService) {
+                              AuditService auditService, ConsentService consentService) {
         this.customers = customers;
         this.bookings = bookings;
         this.auditService = auditService;
+        this.consentService = consentService;
     }
 
     @Transactional(readOnly = true)
@@ -74,7 +77,8 @@ public class Customer360Service {
                 c.getId(), c.getFullName(), c.getMobileNumber(), c.getWhatsappNumber(), c.getEmail(),
                 c.isConsentGiven(), c.getConsentCapturedAt(), c.getConsentScope(),
                 c.isMarketingOptIn(), history.size(), bookings.lastTripDate(id), totalSpent(history),
-                c.getSuggestOffer(), c.offerTagsCopy(), c.getNotes(), history, c.getCreatedAt(), c.getUpdatedAt());
+                c.getSuggestOffer(), c.offerTagsCopy(), c.getNotes(), history,
+                consentService.marketingStatus(id), c.getCreatedAt(), c.getUpdatedAt());
     }
 
     @Transactional
@@ -115,6 +119,7 @@ public class Customer360Service {
                 c.setMarketingOptIn(request.marketingOptIn());
                 auditService.record("CUSTOMER360", c.getId(), AuditAction.UPDATE, "marketing_opt_in",
                         String.valueOf(old), String.valueOf(request.marketingOptIn()));
+                consentService.syncMarketingOptIn(c.getId(), request.marketingOptIn(), caller.id());
             }
         }
 

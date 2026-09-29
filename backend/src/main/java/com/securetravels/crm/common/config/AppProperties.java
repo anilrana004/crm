@@ -18,6 +18,9 @@ public class AppProperties {
     private final Capacity capacity = new Capacity();
     private final Messaging messaging = new Messaging();
     private final WhatsApp whatsapp = new WhatsApp();
+  private final Email email = new Email();
+  private final Sms sms = new Sms();
+    private final Automation automation = new Automation();
     private boolean bootstrapDemoData = true;
 
     public Jwt getJwt() { return jwt; }
@@ -27,8 +30,11 @@ public class AppProperties {
     public Compliance getCompliance() { return compliance; }
     public Storage getStorage() { return storage; }
     public Capacity getCapacity() { return capacity; }
-    public Messaging getMessaging() { return messaging; }
-    public WhatsApp getWhatsApp() { return whatsapp; }
+  public Messaging getMessaging() { return messaging; }
+  public WhatsApp getWhatsApp() { return whatsapp; }
+  public Email getEmail() { return email; }
+  public Sms getSms() { return sms; }
+    public Automation getAutomation() { return automation; }
     public boolean isBootstrapDemoData() { return bootstrapDemoData; }
     public void setBootstrapDemoData(boolean bootstrapDemoData) { this.bootstrapDemoData = bootstrapDemoData; }
 
@@ -246,5 +252,107 @@ public class AppProperties {
          * {@code InteraktWhatsAppGateway}.
          */
         public boolean configured() { return apiKey != null && !apiKey.isBlank(); }
+    }
+
+    /**
+     * Email (Phase 5 Module 2). The default is {@code SANDBOX}: SES needs a
+     * verified domain, an IAM key and DNS records that do not exist yet, and a
+     * default that fails to start would make the whole application unbootable
+     * for everyone but ops.
+     */
+    public static class Email {
+        public enum Mode { SANDBOX, SES }
+
+        private Mode mode = Mode.SANDBOX;
+        private String region = "ap-south-1";
+        private String endpoint = "";
+        private String from = "bookings@securetravels.example";
+        private String replyTo = "";
+        private String accessKey = "";
+        private String secretKey = "";
+        /** SNS subscription confirmation / notification signing secret. */
+        private String webhookSecret = "";
+
+        public Mode getMode() { return mode; }
+        public void setMode(Mode mode) { this.mode = mode; }
+        public String getRegion() { return region; }
+        public void setRegion(String region) { this.region = region; }
+        public String getEndpoint() { return endpoint; }
+        public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+        public String getFrom() { return from; }
+        public void setFrom(String from) { this.from = from; }
+        public String getReplyTo() { return replyTo; }
+        public void setReplyTo(String replyTo) { this.replyTo = replyTo; }
+        public String getAccessKey() { return accessKey; }
+        public void setAccessKey(String accessKey) { this.accessKey = accessKey; }
+        public String getSecretKey() { return secretKey; }
+        public void setSecretKey(String secretKey) { this.secretKey = secretKey; }
+        public String getWebhookSecret() { return webhookSecret; }
+        public void setWebhookSecret(String webhookSecret) { this.webhookSecret = webhookSecret; }
+
+        public boolean live() { return mode == Mode.SES; }
+    }
+
+    /**
+     * SMS (Phase 5 Module 2). {@code senderId} is separate from the gateway's
+     * because the DLT-registered sender id is a compliance artefact: it belongs
+     * to the DLT portal, not to a provider account, and is needed even in
+     * sandbox mode to make the payload realistic.
+     */
+    public static class Sms {
+        public enum Mode { SANDBOX, MSG91 }
+
+        private Mode mode = Mode.SANDBOX;
+        private String senderId = "SECURE";
+        private String webhookSecret = "";
+
+        public Mode getMode() { return mode; }
+        public void setMode(Mode mode) { this.mode = mode; }
+        public String getSenderId() { return senderId; }
+        public void setSenderId(String senderId) { this.senderId = senderId; }
+        public String getWebhookSecret() { return webhookSecret; }
+        public void setWebhookSecret(String webhookSecret) { this.webhookSecret = webhookSecret; }
+
+        public boolean live() { return mode == Mode.MSG91; }
+    }
+
+    /**
+     * Phase 6 Module 1 — definition bounds enforced by {@code WorkflowValidator}.
+     *
+     * <p>{@code maxStepsPerWorkflow} caps the graph so a branching workflow
+     * cannot grow into an unbounded execution; {@code maxWaitMinutes} (3 months
+     * by default: the PDF expiry horizon) caps WAIT so the poller never books
+     * work farther ahead than the product tolerates. Both are floor/ceiling
+     * guards, not product policy — the editor can always demand less.
+     */
+    public static class Automation {
+        private int maxStepsPerWorkflow = 30;
+        private int maxWaitMinutes = 129_600;
+        private long relayPollMillis = 1_000;
+        private long stepPollMillis = 1_000;
+        private long triggerPollMillis = 60_000;
+        private long recoveryIntervalMillis = 60_000;
+        private int pollBatchSize = 20;
+        private long recoveryGraceMillis = 60_000;
+        private int eventMaxAttempts = 5;
+
+        public int getMaxStepsPerWorkflow() { return maxStepsPerWorkflow; }
+        public void setMaxStepsPerWorkflow(int maxStepsPerWorkflow) { this.maxStepsPerWorkflow = maxStepsPerWorkflow; }
+        public int getMaxWaitMinutes() { return maxWaitMinutes; }
+        public void setMaxWaitMinutes(int maxWaitMinutes) { this.maxWaitMinutes = maxWaitMinutes; }
+        public long getRelayPollMillis() { return relayPollMillis; }
+        public void setRelayPollMillis(long relayPollMillis) { this.relayPollMillis = relayPollMillis; }
+        public long getStepPollMillis() { return stepPollMillis; }
+        public void setStepPollMillis(long stepPollMillis) { this.stepPollMillis = stepPollMillis; }
+        public long getTriggerPollMillis() { return triggerPollMillis; }
+        public void setTriggerPollMillis(long triggerPollMillis) { this.triggerPollMillis = triggerPollMillis; }
+        public long getRecoveryIntervalMillis() { return recoveryIntervalMillis; }
+        public void setRecoveryIntervalMillis(long recoveryIntervalMillis) { this.recoveryIntervalMillis = recoveryIntervalMillis; }
+        public int getPollBatchSize() { return pollBatchSize; }
+        public void setPollBatchSize(int pollBatchSize) { this.pollBatchSize = pollBatchSize; }
+        public long getRecoveryGraceMillis() { return recoveryGraceMillis; }
+        public void setRecoveryGraceMillis(long recoveryGraceMillis) { this.recoveryGraceMillis = recoveryGraceMillis; }
+        public int getEventMaxAttempts() { return eventMaxAttempts; }
+        public void setEventMaxAttempts(int eventMaxAttempts) { this.eventMaxAttempts = eventMaxAttempts; }
     }
 }

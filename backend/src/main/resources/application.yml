@@ -94,6 +94,20 @@ app:
     connect-timeout: ${INTERAKT_CONNECT_TIMEOUT:5s}
     read-timeout: ${INTERAKT_READ_TIMEOUT:10s}
     rate-limit-per-minute: ${INTERAKT_RATE_LIMIT_PER_MINUTE:300}
+  automation:
+    # Phase 6 Module 1 — hard bounds the validator applies to every definition.
+    max-steps-per-workflow: ${AUTOMATION_MAX_STEPS_PER_WORKFLOW:30}
+    max-wait-minutes: ${AUTOMATION_MAX_WAIT_MINUTES:129600}
+    # Phase 6 Module 2 — run layer. Pollers are @Scheduled and dormant when the
+    # intervals are huge (test profile); recovery re-enters runs that were
+    # mid-flight when a node died.
+    relay-poll-millis: ${AUTOMATION_RELAY_POLL_MILLIS:1000}
+    step-poll-millis: ${AUTOMATION_STEP_POLL_MILLIS:1000}
+    trigger-poll-millis: ${AUTOMATION_TRIGGER_POLL_MILLIS:60000}
+    recovery-interval-millis: ${AUTOMATION_RECOVERY_INTERVAL_MILLIS:60000}
+    poll-batch-size: ${AUTOMATION_POLL_BATCH_SIZE:20}
+    recovery-grace-millis: ${AUTOMATION_RECOVERY_GRACE_MILLIS:60000}
+    event-max-attempts: ${AUTOMATION_EVENT_MAX_ATTEMPTS:5}
 
 management:
   endpoints:

@@ -3,6 +3,8 @@ package com.securetravels.crm.communications;
 import com.securetravels.crm.communications.dto.WhatsAppMessageResponse;
 import com.securetravels.crm.communications.dto.WhatsAppSendRequest;
 import com.securetravels.crm.communications.dto.WhatsAppTemplateResponse;
+import com.securetravels.crm.common.exception.BadRequestException;
+import com.securetravels.crm.common.exception.ForbiddenException;
 import com.securetravels.crm.common.security.CurrentUser;
 import com.securetravels.crm.user.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,14 +40,14 @@ import java.util.UUID;
 @SecurityRequirement(name = "bearerAuth")
 public class WhatsAppController {
 
-    private final WhatsAppDispatchService dispatch;
+    private final SendGateService sendGate;
     private final WhatsAppMessageRepository messages;
     private final WhatsAppTemplateRepository templates;
     private final TimelineService timeline;
 
-    public WhatsAppController(WhatsAppDispatchService dispatch, WhatsAppMessageRepository messages,
+    public WhatsAppController(SendGateService sendGate, WhatsAppMessageRepository messages,
                               WhatsAppTemplateRepository templates, TimelineService timeline) {
-        this.dispatch = dispatch;
+        this.sendGate = sendGate;
         this.messages = messages;
         this.templates = templates;
         this.timeline = timeline;
@@ -90,8 +92,20 @@ public class WhatsAppController {
         // Sending is a disclosure of the customer's data, so it is gated on the
         // same ownership check as reading their timeline.
         timeline.assertCanRead(request.subjectType(), request.subjectId(), caller);
-        WhatsAppMessage queued = dispatch.enqueue(request.subjectType(), request.subjectId(),
-                request.templateCode(), request.mobile(), request.bodyValues());
-        return WhatsAppMessageResponse.from(queued);
+        SendDecision decision = sendGate.request(SendRequest.whatsappTemplate(
+                request.subjectType(), request.subjectId(), request.templateCode(),
+                request.mobile(), request.bodyValues(), caller.id()));
+        if (!decision.accepted()) {
+            // Consent failures are 403s ("this is against the customer's
+            // recorded preference"); input mistakes stay 400s, exactly as they
+            // were before the gate existed.
+            throw decision.httpStatus() == 403
+                    ? new ForbiddenException(decision.reason())
+                    : new BadRequestException(decision.reason());
+        }
+        return messages.findById(decision.messageId())
+                .map(WhatsAppMessageResponse::from)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Accepted send left no message row for " + decision.messageId()));
     }
 }

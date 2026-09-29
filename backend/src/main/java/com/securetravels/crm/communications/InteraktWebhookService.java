@@ -4,6 +4,8 @@ import com.securetravels.crm.common.config.AppProperties;
 import com.securetravels.crm.common.exception.WebhookSignatureException;
 import com.securetravels.crm.common.security.HmacSigner;
 import com.securetravels.crm.common.util.PhoneUtils;
+import com.securetravels.crm.communications.consent.ConsentService;
+import com.securetravels.crm.communications.thread.CommunicationChannel;
 import com.securetravels.crm.communications.dto.InteraktWebhookEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -48,13 +50,19 @@ public class InteraktWebhookService {
 
     private final WhatsAppMessageRepository messages;
     private final TimelineEventRepository timeline;
+    private final ConsentService consent;
+    private final com.securetravels.crm.communications.inbound.InboundMessageService inboundMessages;
     private final ObjectMapper objectMapper;
     private final AppProperties props;
 
     public InteraktWebhookService(WhatsAppMessageRepository messages, TimelineEventRepository timeline,
+                                  ConsentService consent,
+                                  com.securetravels.crm.communications.inbound.InboundMessageService inboundMessages,
                                   ObjectMapper objectMapper, AppProperties props) {
         this.messages = messages;
         this.timeline = timeline;
+        this.consent = consent;
+        this.inboundMessages = inboundMessages;
         this.objectMapper = objectMapper;
         this.props = props;
     }
@@ -178,25 +186,67 @@ public class InteraktWebhookService {
         if (mobile == null && text == null) return 0;
 
         Subject subject = resolveSubject(mobile);
-        if (subject == null) {
-            log.info("[interakt] inbound message from {} with no known conversation; not attached to a timeline",
-                    mobile);
+
+        boolean media = payload.mediaUrl() != null;
+        String mediaType = payload.messageContentType();
+        TimelineEvent.Kind kind = media ? TimelineEvent.Kind.MEDIA_RECEIVED : TimelineEvent.Kind.REPLY_RECEIVED;
+        String summary = media
+                ? "Received a WhatsApp " + (mediaType == null ? "media" : mediaType)
+                : "Replied on WhatsApp: " + truncate(text);
+
+        // One row per provider id, on every channel, recorded in the single place
+        // a redelivery can be recognised. It also resolves the sender to a
+        // customer/lead (creating a lead for a stranger) and opens their inbox
+        // thread. Doing this FIRST is what makes the opt-out below idempotent:
+        // a retried STOP finds the existing inbound row and never reaches the
+        // consent call, so three deliveries produce one revoke, not three.
+        boolean firstDelivery = inboundMessages
+                .record(CommunicationChannel.WHATSAPP, PROVIDER, payload.id(), mobile, null,
+                        text, media, mediaType, Instant.now())
+                .isPresent();
+        if (!firstDelivery) {
             return 0;
         }
 
-        boolean media = payload.mediaUrl() != null;
-        TimelineEvent.Kind kind = media ? TimelineEvent.Kind.MEDIA_RECEIVED : TimelineEvent.Kind.REPLY_RECEIVED;
-        String summary = media
-                ? "Received a WhatsApp " + (payload.messageContentType() == null ? "media" : payload.messageContentType())
-                : "Replied on WhatsApp: " + truncate(text);
-
-        if (payload.id() != null && timeline.existsByProviderAndProviderMessageIdAndKind(
-                PROVIDER, payload.id(), kind)) {
-            return 0;   // duplicate delivery
+        // A STOP / unsubscribe opt-out revokes MARKETING consent for this number
+        // on this channel — processed even for a number with no customer row
+        // (which becomes a suppression), because a preference expressed once
+        // must weigh as much as one expressed after an account exists.
+        if (mobile != null && isOptOut(text)) {
+            boolean revokedCustomer = consent.handleOptOut(TimelineEvent.Channel.WHATSAPP, mobile,
+                    payload.id() == null ? "STOP keyword on WhatsApp" : "Interakt message " + payload.id());
+            if (subject != null) {
+                timeline.save(TimelineEvent.systemNote(subject.type(), subject.id(),
+                        "Marketing opt-out received and recorded", null));
+            }
+            log.info("[interakt] WhatsApp opt-out \"{}\" from {} (customer consent revoked: {})",
+                    truncate(text), mobile, revokedCustomer);
+            return 1;
         }
-        timeline.save(TimelineEvent.inbound(subject.type(), subject.id(), kind, summary, text,
-                PROVIDER, payload.id(), mobile));
+
+        if (subject == null) {
+            log.info("[interakt] inbound message from {} with no known conversation; not attached to a timeline",
+                    mobile);
+            return 1;
+        }
+        if (!timeline.existsByProviderAndProviderMessageIdAndKind(PROVIDER, payload.id(), kind)) {
+            timeline.save(TimelineEvent.inbound(subject.type(), subject.id(), TimelineEvent.Channel.WHATSAPP,
+                    kind, summary, text, PROVIDER, payload.id(), mobile));
+        }
         return 1;
+    }
+
+    /**
+     * The TRAI-compliant stop phrases. Compared on squashed upper-case so
+     * "st0p", "Stop!", and "stop 5" all resolve to the same intent.
+     */
+    private static boolean isOptOut(String text) {
+        if (text == null) {
+            return false;
+        }
+        String squashed = text.toUpperCase().replaceAll("[^A-Z]", "");
+        return squashed.equals("STOP") || squashed.equals("UNSUBSCRIBE") || squashed.equals("UNSUB")
+                || squashed.equals("OPTOUT") || squashed.equals("QUIT");
     }
 
     private int onClick(InteraktWebhookEvent event) {
@@ -214,7 +264,7 @@ public class InteraktWebhookService {
                 PROVIDER, payload.id(), TimelineEvent.Kind.BUTTON_CLICKED)) {
             return 0;
         }
-        timeline.save(TimelineEvent.inbound(subject.type(), subject.id(),
+        timeline.save(TimelineEvent.inbound(subject.type(), subject.id(), TimelineEvent.Channel.WHATSAPP,
                 TimelineEvent.Kind.BUTTON_CLICKED,
                 buttonText == null ? "Clicked a button on a WhatsApp message"
                         : "Clicked \"" + truncate(buttonText) + "\" on a WhatsApp message",
